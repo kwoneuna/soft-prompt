@@ -1,3 +1,4 @@
+
 import os
 import time
 import datetime
@@ -11,12 +12,13 @@ from torch.cuda.amp import GradScaler, autocast
 
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+from torch.utils.tensorboard import SummaryWriter
 
 from dassl.engine import TRAINER_REGISTRY, TrainerX
 from dassl.metrics import compute_accuracy
 from dassl.utils import load_pretrained_weights, load_checkpoint
 from dassl.optim import build_optimizer, build_lr_scheduler
-
+from utils.templates import SELECT_TEMPLATES
 from trainers_baseline.basedg import *
 from utils.clip_part import *
 
@@ -24,22 +26,28 @@ _tokenizer = _Tokenizer()
 
 
 class PromptLearner(nn.Module):
-    def __init__(self, cfg, classnames, clip_model):
+    def __init__(self, cfg, classnames, clip_model,template_idx=None):
         super().__init__()
         n_cls = len(classnames)
         n_ctx = cfg.TRAINER.COOP.N_CTX
+        # n_ctx = 4
         ctx_init = cfg.TRAINER.COOP.CTX_INIT
         dtype = clip_model.dtype
         ctx_dim = clip_model.ln_final.weight.shape[0]
         clip_imsize = clip_model.visual.input_resolution
         cfg_imsize = cfg.INPUT.SIZE[0]
         assert cfg_imsize == clip_imsize, f"cfg_imsize ({cfg_imsize}) must equal to clip_imsize ({clip_imsize})"
-
+        if template_idx is not None and template_idx < len(SELECT_TEMPLATES):
+            chosen_template = SELECT_TEMPLATES[template_idx]
+        else:
+            # 기본값 (일반 CoOp 설정)
+            chosen_template = "a photo of a {}."
         if ctx_init:
             # use given words to initialize context vectors
             ctx_init = ctx_init.replace("_", " ")
             n_ctx = len(ctx_init.split(" "))
             prompt = clip.tokenize(ctx_init)
+            prompt = prompt.to('cuda')
             with torch.no_grad():
                 embedding = clip_model.token_embedding(prompt).type(dtype)
             ctx_vectors = embedding[0, 1 : 1 + n_ctx, :]
@@ -53,28 +61,26 @@ class PromptLearner(nn.Module):
             else:
                 print("Initializing a generic context")
                 ctx_vectors = torch.empty(n_ctx, ctx_dim, dtype=dtype)
-            nn.init.normal_(ctx_vectors, std=0.02)
-            prompt_prefix = " ".join(["X"] * n_ctx)
-
-        print(f'Initial context: "{prompt_prefix}"')
-        print(f"Number of context words (tokens): {n_ctx}")
-
-        self.ctx = nn.Parameter(ctx_vectors)  # to be optimized
-
+                nn.init.normal_(ctx_vectors, std=0.02)
+                prompt_prefix = " ".join(["X"] * n_ctx)
+        print(f'Initial template: "{chosen_template}"')
+        self.ctx = nn.Parameter(ctx_vectors)
         classnames = [name.replace("_", " ") for name in classnames]
-        name_lens = [len(_tokenizer.encode(name)) for name in classnames]
-        prompts = [prompt_prefix + " " + name + "." for name in classnames]
 
-        tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])
-
+        prompts = [chosen_template.format(name) for name in classnames]
+        prompts_with_ctx = [prompt_prefix + " " + p for p in prompts]
+        name_lens = [len(_tokenizer.encode(p)) - n_ctx for p in prompts_with_ctx]
+        tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts_with_ctx])
+        tokenized_prompts = tokenized_prompts.to('cuda') 
         with torch.no_grad():
             embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
             
-        # These token vectors will be saved when in save_model(),
-        # but they should be ignored in load_model() as we want to use
-        # those computed using the current class names
         self.register_buffer("token_prefix", embedding[:, :1, :])  # SOS
-        self.register_buffer("token_suffix", embedding[:, 1 + n_ctx :, :])  # CLS, EOS
+        self.register_buffer("token_suffix", embedding[:, 1 + n_ctx :, :])  # ClassName, EOS 등
+        print(f"Number of context words (tokens): {n_ctx}")
+
+
+        name_lens = [len(_tokenizer.encode(name)) for name in classnames]
 
         self.n_cls = n_cls
         self.n_ctx = n_ctx
@@ -147,40 +153,373 @@ class PromptLearner(nn.Module):
             raise ValueError
 
         return prompts
+    @staticmethod
+    def encode_template_features(classnames, clip_model, device):
+        n_cls = len(classnames)
+        classnames = [name.replace("_", " ") for name in classnames]
+        
+        all_features = []
+        
+        with torch.no_grad():
+            for template in SELECT_TEMPLATES:
+                prompts = [template.format(name) for name in classnames]
+                tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts]).to(device)
+                
+                # Context (X)가 없는 순수한 템플릿의 특징을 CLIP의 기본 텍스트 인코더로 추출
+                text_features = clip_model.encode_text(tokenized_prompts)
+                text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+                all_features.append(text_features.cpu()) 
+        
+        # [Num_Templates, n_cls, D]
+        return torch.stack(all_features, dim=0)
 
+def _softplus_pos(x, eps=1e-6):
+    # 양수 보장 (분산 안정화)
+    return F.softplus(x) + eps
 
+def mahalanobis_diag(x, mu, var_diag):
+    """
+    x:      (B, D)   - 이미지 특징
+    mu:     (B, D)   - 비교할 텍스트 특징(프롬프트 k의 각 샘플별 타깃 클래스 텍스트)
+    var_diag:(D,)    - 프롬프트 k의 대각 공분산(분산)
+    return: (B,)     - 샘플별 마할라노비스 거리
+    """
+    inv_var = 1.0 / var_diag  # (D,)
+    diff = x - mu             # (B, D)
+    # (x-mu)^T Sigma^{-1} (x-mu)  with diagonal Sigma: sum( diff^2 * inv_var )
+    dist = torch.sum(diff * diff * inv_var, dim=1)
+    return torch.sqrt(torch.clamp(dist, min=1e-8))
 class CustomCLIP(nn.Module):
-    def __init__(self, cfg, classnames, clip_model):
+    def __init__(self, cfg, classnames, clip_model,best_idx):
         super().__init__()
-        self.prompt_learner = PromptLearner(cfg, classnames, clip_model)
-        self.tokenized_prompts = self.prompt_learner.tokenized_prompts
-        self.image_encoder = clip_model.visual
-        self.text_encoder = TextEncoder(cfg, clip_model, self.prompt_learner)
+        # 프롬프트 5개 사용을 가정
+        self.num_selected_prompts = 3
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.clip_model = clip_model.to(self.device)
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
+       
+        self.prompt_learner = nn.ModuleList([
+            PromptLearner(cfg, classnames, self.clip_model,best_idx[i]) 
+            for i in range(self.num_selected_prompts)
+        ])
+        self.tokenized_prompts = self.prompt_learner[0].tokenized_prompts  # 모두 동일
+        self.image_encoder = clip_model.visual
+        self.text_encoder = TextEncoder(cfg, clip_model, self.prompt_learner[0]) 
+       
         self.image_features = torch.tensor(0)
-        self.text_features = torch.tensor(0)
-        self.prompts = torch.tensor(0)
-        self.token_prompts = torch.tensor(0)
-        self.logit = -1
-
-    def forward(self, image):
-        self.image_features = self.image_encoder(image.type(self.dtype))
-        
-        prompts = self.prompt_learner()
-        self.prompts = prompts
+        self.text_features = []
+        self.prompts = []
         self.token_prompts = self.tokenized_prompts
-        self.text_features = self.text_encoder(prompts, self.tokenized_prompts)
+        self.logits = []
+        # ctx_dim = clip_model.ln_final.weight.shape[0]
+        # self.prompt_variance = nn.ParameterList([
+        #     nn.Parameter(torch.ones(ctx_dim, dtype=self.dtype) * 0.01)
+        #     for _ in range(self.num_selected_prompts)
+        # ])
 
-        self.image_features = self.image_features / self.image_features.norm(dim=-1, keepdim=True)
-        self.text_features = self.text_features / self.text_features.norm(dim=-1, keepdim=True)
+        D = clip_model.ln_final.weight.shape[0]
+        self.num_classes = len(classnames)
+        K, C = self.num_selected_prompts, self.num_classes
 
+        self.register_buffer("ema_var", torch.ones(K, C, D, dtype=self.dtype) * 1e-2)
+        self.register_buffer("ema_count", torch.zeros(K, C, dtype=torch.long))  # 선택: 모니터링용
+
+        # EMA momentum: 새 배치 추정치에 얼마나 가중을 둘지
+        self.var_momentum = float(getattr(cfg.TRAINER.COOP, "VAR_EMA_M", 0.1))
+        self.var_eps = float(getattr(cfg.TRAINER.COOP, "VAR_EPS", 1e-5))      # 수치 안정화
+        self.min_var = float(getattr(cfg.TRAINER.COOP, "VAR_MIN", 1e-6))      # 너무 작은 분산 방지
+
+        self.routing_gamma = float(getattr(cfg.TRAINER.COOP, "ROUTING_GAMMA", 0.5))
+    # def forward(self, image, zeroshot_logit=None):
+    #     self.image_features = self.image_encoder(image.type(self.dtype))
+    #     self.image_features = self.image_features / self.image_features.norm(dim=-1, keepdim=True)
+
+    #     self.logits = []
+    #     logit_scale = self.logit_scale.exp()
+
+    #     for prompt_learner in self.prompt_learner:
+    #         prompts = prompt_learner()
+    #         text_feat = self.text_encoder(prompts, self.tokenized_prompts)
+    #         text_feat = text_feat / text_feat.norm(dim=-1, keepdim=True)
+
+    #         logit = logit_scale * self.image_features @ text_feat.t()
+    #         self.logits.append(logit)
+
+    #     final_logits = torch.stack(self.logits, dim=0).mean(dim=0)
+
+    #     return final_logits
+    # CustomCLIP 내부에 추가
+    @torch.no_grad()
+    def routing_debug_scalars(self, image, label, routing_gamma=None):
+        """
+        forward와 동일한 라우팅(로그우도 + ema_var)으로만 스칼라 계산
+        Returns:
+        - min_dist_mean, max_w_mean, entropy_mean
+        - util: [K]
+        - acc_per_prompt: [K]
+        - acc_top_prompt: scalar
+        - weighted_margin_mean: scalar
+        """
+        if routing_gamma is None:
+            routing_gamma = float(self.routing_gamma)
+
+        # 1) features
+        img_feat = self.image_encoder(image.type(self.dtype))
+        img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)  # [B,D]
+        B, D = img_feat.shape
         logit_scale = self.logit_scale.exp()
-        self.logit = logit_scale
-        logits = logit_scale * self.image_features @ self.text_features.t()
 
-        return logits
+        label_idx = label if torch.is_tensor(label) else torch.as_tensor(label, device=img_feat.device)
+        label_idx = label_idx.to(img_feat.device).long().view(-1)  # [B]
+
+        # 2) per-prompt text feats + logits
+        text_feats_per_prompt = []
+        logits_per_prompt = []
+        for pl in self.prompt_learner:
+            prompts = pl()
+            tfeat = self.text_encoder(prompts, self.tokenized_prompts)  # [C,D]
+            tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
+            text_feats_per_prompt.append(tfeat)
+            logits_k = logit_scale * img_feat @ tfeat.t()               # [B,C]
+            logits_per_prompt.append(logits_k)
+
+        K = self.num_selected_prompts
+        C = logits_per_prompt[0].size(1)
+
+        # 3) NLEEP-style: 로그우도 기반 라우팅 (ema_var 사용)
+        mu_stack = torch.stack(text_feats_per_prompt, dim=0)           # [K,C,D]
+        mu_for_sample  = mu_stack[:, label_idx, :]                     # [K,B,D]
+        var_for_sample = self.ema_var[:, label_idx, :].clamp_min(self.min_var)  # [K,B,D]
+        x_rep = img_feat.unsqueeze(0).expand(K, -1, -1)                # [K,B,D]
+
+        # log p(x|mu,var) = -0.5 * sum_d( (x-mu)^2/var + log var )     (정규화 상수는 공통이라 생략)
+        diff2_over_var = ((x_rep - mu_for_sample) ** 2) / var_for_sample   # [K,B,D]
+        logprob = -0.5 * (diff2_over_var.sum(dim=-1) + var_for_sample.log().sum(dim=-1))  # [K,B]
+        logprob = logprob.t()                                           # [B,K]
+
+        # weights
+        weights = F.softmax(routing_gamma * logprob, dim=1)            # [B,K]
+
+        # 4) 스칼라들
+        # (a) min_dist_mean: 거리 성분만 사용 (logprob에서 분리한 d^2 항)
+        dterm = diff2_over_var.sum(dim=-1).t()                          # [B,K] = ∑(x-mu)^2/var
+        min_dist_mean = dterm.min(dim=1).values.mean()
+
+        # (b) max_w_mean / entropy_mean
+        max_w_mean   = weights.max(dim=1).values.mean()
+        entropy_mean = (-(weights.clamp_min(1e-9) * weights.clamp_min(1e-9).log()).sum(dim=1)).mean()
+
+        # (c) 프롬프트 활용도
+        top_prompt = weights.argmax(dim=1)                               # [B]
+        util = torch.bincount(top_prompt, minlength=K).float() / B       # [K]
+
+        # (d) 프롬프트별 정확도 (각 프롬프트 단독 로짓 기준)
+        acc_per_prompt = []
+        for k in range(K):
+            pred_k = logits_per_prompt[k].argmax(dim=1)                  # [B]
+            acc_k  = (pred_k == label_idx).float().mean()
+            acc_per_prompt.append(acc_k)
+        acc_per_prompt = torch.stack(acc_per_prompt, dim=0)              # [K]
+
+        # (e) “가장 큰 weight 프롬프트”의 정확도
+        logits_stack = torch.stack(logits_per_prompt, dim=0)             # [K,B,C]
+        logits_top = logits_stack.permute(1,0,2)[torch.arange(B), top_prompt, :]  # [B,C]
+        pred_top = logits_top.argmax(dim=1)
+        acc_top_prompt = (pred_top == label_idx).float().mean()
+
+        # (f) 가중합 로짓의 1등-2등 마진 평균
+        weighted_logits = (weights.unsqueeze(-1) * torch.stack(logits_per_prompt, dim=1)).sum(dim=1)  # [B,C]
+        top2 = torch.topk(weighted_logits, k=2, dim=1).values                                           # [B,2]
+        weighted_margin_mean = (top2[:, 0] - top2[:, 1]).mean()
+
+        return {
+            "min_dist_mean": min_dist_mean,
+            "max_w_mean": max_w_mean,
+            "entropy_mean": entropy_mean,
+            "util": util,                              # [K]
+            "acc_per_prompt": acc_per_prompt,          # [K]
+            "acc_top_prompt": acc_top_prompt,          # scalar
+            "weighted_margin_mean": weighted_margin_mean  # scalar
+        }
+
     
+    def diag_gaussian_logprob(self,x, mu, var, eps=1e-8):
+        """
+        x, mu, var: [..., D]  (var는 대각)
+        return: [...], per-sample log-prob (정규화 상수 제외해도 라우팅엔 동일하지만 포함해 둠)
+        """
+        var = var.clamp_min(eps)
+        diff2 = (x - mu).pow(2)
+        term = diff2 / var + var.log()
+        # -0.5 * sum_d[ (x-mu)^2/var + log var ]   (정규화 상수 -0.5*D*log(2π)는 공통이므로 생략 가능)
+        return -0.5 * term.sum(dim=-1)
+
+    def forward(self, image, label=None):
+        # 1) 이미지 특징
+        img_feat = self.image_encoder(image.type(self.dtype))
+        img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)  # [B, D]
+        B, D = img_feat.shape
+        logit_scale = self.logit_scale.exp()
+
+        # 2) 프롬프트별 텍스트 특징 + 프롬프트별 로짓
+        text_feats_per_prompt = []
+        logits_per_prompt = []
+        for pl in self.prompt_learner:
+            prompts = pl()
+            tfeat = self.text_encoder(prompts, self.tokenized_prompts)  # [C, D]
+            tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
+            text_feats_per_prompt.append(tfeat)
+            logits = logit_scale * img_feat @ tfeat.t()                 # [B, C]
+            logits_per_prompt.append(logits)
+
+        # 3) 평균 앙상블 (평가/fallback)
+        stacked_logits = torch.stack(logits_per_prompt, dim=0)  # [K, B, C]
+        avg_logits = stacked_logits.mean(dim=0)                 # [B, C]
+
+        if label is None:
+            return avg_logits  # 평가에선 기존 그대로
+
+        # --------- 학습 시: NLEEP-style 라우팅 ---------
+        # label 정리
+        label_idx = label if torch.is_tensor(label) else torch.as_tensor(label, device=img_feat.device)
+        label_idx = label_idx.to(img_feat.device).long().view(-1)  # [B]
+
+        K, C = self.num_selected_prompts, self.num_classes
+        device = img_feat.device
+        mu_stack = torch.stack(text_feats_per_prompt, dim=0)  # [K, C, D]
+        with torch.no_grad():
+            var_hat = torch.empty_like(self.ema_var)  # [K, C, D]
+            var_hat.copy_(self.ema_var)               # 관측 없는 클래스는 이전 값 유지
+
+            for c in range(C):
+                mask_c = (label_idx == c)
+                if mask_c.any():
+                    x_c = img_feat[mask_c]            # [Nc, D]
+                    # 각 k에 대해: mu_{k,c}와의 제곱차 평균
+                    # diff2: [K, Nc, D] = (x_c[None,:,:] - mu_stack[:,c,:][:,None,:])^2
+                    diff2 = (x_c.unsqueeze(0) - mu_stack[:, c, :].unsqueeze(1)).pow(2)  # [K, Nc, D]
+                    vkc = diff2.mean(dim=1) + self.var_eps                               # [K, D]
+                    var_hat[:, c, :] = vkc.clamp_min(self.min_var)
+                    self.ema_count[:, c] += mask_c.sum().to(self.ema_count.dtype)
+
+            # (B) EMA 업데이트
+            m = self.var_momentum
+            self.ema_var.mul_(1.0 - m).add_(m * var_hat)
+
+        # (C) 샘플별/프롬프트별 로그우도 계산
+        # mu_for_sample: [K, B, D], var_for_sample: [K, B, D]
+        mu_for_sample = mu_stack[:, label_idx, :]                 # [K, B, D]
+        var_for_sample = self.ema_var[:, label_idx, :].clamp_min(self.min_var)  # [K, B, D]
+
+        # img_feat -> [K, B, D] 로 브로드캐스트
+        x_rep = img_feat.unsqueeze(0).expand(K, -1, -1)  # [K, B, D]
+
+        logprob = self.diag_gaussian_logprob(x_rep, mu_for_sample, var_for_sample)  # [K, B]
+        logprob = logprob.t()  # [B, K]  (샘플×프롬프트)
+
+        # (D) 라우팅 weight
+        weights = F.softmax(self.routing_gamma * logprob, dim=1)  # [B, K]; log-prob가 클수록 가중↑
+
+        # (E) 가중 로짓 합산
+        weighted_logits = 0
+        for k in range(K):
+            w_k = weights[:, k].unsqueeze(1)                      # [B,1]
+            weighted_logits = weighted_logits + w_k * logits_per_prompt[k]
+
+        return weighted_logits
+
+    # def forward(self, image, label=None):
+    #     # 1) 이미지 특징
+    #     img_feat = self.image_encoder(image.type(self.dtype))
+    #     img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)  # [B, D]
+    #     B, D = img_feat.shape
+    #     logit_scale = self.logit_scale.exp()
+
+    #     # 2) 프롬프트별 텍스트 특징 + 프롬프트별 로짓
+    #     text_feats_per_prompt = []
+    #     logits_per_prompt = []
+    #     for pl in self.prompt_learner:
+    #         prompts = pl()
+    #         tfeat = self.text_encoder(prompts, self.tokenized_prompts)  # [C, D]
+    #         tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
+    #         text_feats_per_prompt.append(tfeat)
+    #         logits = logit_scale * img_feat @ tfeat.t()                  # [B, C]
+    #         logits_per_prompt.append(logits)
+
+    #     # 3) 임시 앙상블(평균) 로짓
+    #     stacked_logits = torch.stack(logits_per_prompt, dim=0)  # [K, B, C]
+    #     avg_logits = stacked_logits.mean(dim=0)                 # [B, C]
+
+    #     # 4) 라우팅에 사용할 클래스 선택
+    #     #    - 학습 중(label 제공): 정답 사용
+    #     #    - 평가 중(label 없음): 임시 예측 사용
+    #     if label is not None:
+    #         if not torch.is_tensor(label):
+    #             label_idx = torch.as_tensor(label, device=img_feat.device)
+    #         else:
+    #             label_idx = label.to(img_feat.device)
+    #         label_idx = label_idx.long().view(-1)  # [B]
+
+    #         distances = []  # [K, B]
+    #         for k in range(self.num_selected_prompts):
+    #             tfeat_k = text_feats_per_prompt[k]              # [C, D]
+    #             # 각 샘플의 "정답 클래스" 임베딩을 선택: [B, D]
+    #             mu_k = tfeat_k[label_idx]                       # indexing by true class
+    #             var_k = _softplus_pos(self.prompt_variance[k])  # (D,)
+    #             d_k = mahalanobis_diag(img_feat, mu_k, var_k)   # (B,)
+    #             distances.append(d_k)
+
+    #         distances = torch.stack(distances, dim=0)           # [K, B]
+
+    #         # [K, B] -> [B, K], 작은 거리일수록 가중↑
+    #         weights = F.softmax(-self.routing_gamma * distances.t(), dim=1)  # [B, K]
+
+    #         weighted_logits = 0
+    #         for k in range(self.num_selected_prompts):
+    #             w_k = weights[:, k].unsqueeze(1)                # [B,1]
+    #             weighted_logits = weighted_logits + w_k * logits_per_prompt[k]
+    #     else:
+    #         weighted_logits = avg_logits
+        
+
+    #     return weighted_logits
+    # def forward(self, image, label=None):
+    #     self.image_features = self.image_encoder(image.type(self.dtype))
+    #     self.image_features = self.image_features / self.image_features.norm(dim=-1, keepdim=True)
+
+    #     individual_logits = [] # 개별 프롬프트의 Logits 저장
+    #     mahalanobis_scores = [] 
+    #     logit_scale = self.logit_scale.exp()
+
+    #     for prompt_learner in self.prompt_learner:
+    #         prompts = prompt_learner()
+    #         text_feat = self.text_encoder(prompts, self.tokenized_prompts)
+    #         text_feat = text_feat / text_feat.norm(dim=-1, keepdim=True)
+
+    #         logit = logit_scale * self.image_features @ text_feat.t()
+    #         individual_logits.append(logit)
+
+    #     # 1. 앙상블 (Ensemble)
+    #     stacked_logits = torch.stack(individual_logits, dim=0) # [num_prompts, batch_size, n_cls]
+        
+    #     final_logits = stacked_logits.mean(dim=0)
+
+    #     return final_logits
+ 
+
+@torch.no_grad()
+def build_text_features_per_template(clip_model, classnames, templates, device):
+    text_features_per_t = []
+    for t in templates:
+        # 각 클래스 이름을 템플릿에 끼워넣어 전체 프롬프트 리스트 생성
+        texts = [t.format(c.replace('_', ' ')) for c in classnames]
+        tokenized = clip.tokenize(texts).to(device)
+        # CLIP 텍스트 인코더
+        text_emb = clip_model.encode_text(tokenized)
+        text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
+        text_features_per_t.append(text_emb)
+    return text_features_per_t
     
 @TRAINER_REGISTRY.register()
 class CoOp(TrainerX):
@@ -192,11 +531,120 @@ class CoOp(TrainerX):
 
     def check_cfg(self, cfg):
         assert cfg.TRAINER.COOP.PREC in ["fp16", "fp32", "amp"]
+   
+    def _ensure_writer(self, initialize=False):
+        # 이미 writer가 초기화되었으면 바로 반환 (싱글톤 패턴)
+        if hasattr(self, 'writer') and self.writer is not None and not initialize:
+            return self.writer
 
+        # dassl의 output_dir을 활용하여 고유한 TensorBoard 경로 생성
+        # self.output_dir은 dassl에서 run마다 고유하게 설정됩니다.
+        if not hasattr(self, 'output_dir'):
+            # self.output_dir이 설정되지 않은 경우를 대비 (매우 드물겠지만)
+            tb_dir = os.path.join('/workspace/Soft-Prompt-Generation/', "tensorboard/vlcs/fallback_run")
+        else:
+            # output_dir 아래에 tensorboard 폴더를 만들어 이어서 기록
+            # 이미지에서 'ana' 폴더를 사용한 것을 반영하여 os.path.join을 사용합니다.
+            tb_dir = os.path.join(self.output_dir, 'ana', "tensorboard_log") 
+            # 'tensorboard_log' 폴더를 하나 더 만들어 run 폴더 자체는 생성하지 않도록 합니다.
+
+        os.makedirs(tb_dir, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=tb_dir)
+        print(f"[TensorBoard] Initialized writer in: {self.writer.log_dir}")
+        return self.writer
+
+    def _log_routing_scalars_tb(self, global_step, image, label, tag="train"):
+        # 큰 배치는 일부만
+        max_b = getattr(self, "viz_max_batch", 64)
+        image = image[:max_b]
+        label = label[:max_b]
+
+        S = self.model.routing_debug_scalars(image, label)
+
+        w = self._ensure_writer()
+        w.add_scalar(f"{tag}/maha_minDist_mean", S["min_dist_mean"].item(), global_step)
+        w.add_scalar(f"{tag}/maha_maxW_mean",    S["max_w_mean"].item(),    global_step)
+        w.add_scalar(f"{tag}/maha_entropy_mean", S["entropy_mean"].item(),  global_step)
+
+        # 선택 지표들
+        for k in range(S["util"].numel()):
+            w.add_scalar(f"{tag}/prompt_utilization/p{k}", S["util"][k].item(), global_step)
+        for k in range(S["acc_per_prompt"].numel()):
+            w.add_scalar(f"{tag}/acc_per_prompt/p{k}", S["acc_per_prompt"][k].item(), global_step)
+
+        w.add_scalar(f"{tag}/acc_top_prompt", S["acc_top_prompt"].item(), global_step)
+        w.add_scalar(f"{tag}/weighted_margin_mean", S["weighted_margin_mean"].item(), global_step)
+
+    def kd_loss_with_class_graph(self, logits, labels, T_k=2.0, lam=0.3):
+        """
+        logits: [B, C]
+        labels: [B]
+        self.S_class: [C, C]  (사전 계산된 클래스 유사도)
+        """
+        with torch.no_grad():
+            q = self.S_class[labels]              # [B, C] soft target 분포
+        log_p = F.log_softmax(logits / T_k, dim=1)
+        kd = F.kl_div(log_p, q, reduction='batchmean') * (T_k * T_k)
+        ce = F.cross_entropy(logits, labels)
+        return (1 - lam) * ce + lam * kd
+    @torch.no_grad()
+    def select_best_template_prefix(self, clip_model, dataloader, classnames, templates, device, top_k=3):
+        """
+        여러 text template 후보 중에서 top-k 성능이 좋은 템플릿 인덱스를 선택합니다.
+        기준은 (이미지-텍스트 유사도 평균).
+
+        Args:
+            clip_model: CLIP 모델 (이미지, 텍스트 인코더 포함)
+            dataloader: 학습 이미지 데이터로더
+            classnames: 클래스 이름 리스트
+            templates: 후보 템플릿 문자열 리스트
+            device: torch.device
+            top_k: 상위 몇 개 템플릿을 선택할지 (default: 3)
+
+        Returns:
+            topk_template_indices: 선택된 템플릿 인덱스 리스트
+        """
+        print(f"Selecting the top-{top_k} template indices...")
+
+        # 1️⃣ 이미지 특징 추출
+        clip_model.eval()
+        image_features_list = []
+        for batch in tqdm(dataloader, desc="Extracting Image Features"):
+            image = batch["img"].to(device)
+            with torch.no_grad():
+                features = clip_model.visual(image.type(clip_model.dtype))
+                features = features / features.norm(dim=-1, keepdim=True)
+                image_features_list.append(features)
+        image_features = torch.cat(image_features_list, dim=0)  # [N, D]
+
+        # 2️⃣ 텍스트 특징 추출
+        text_features_per_t = build_text_features_per_template(
+            clip_model, classnames, templates, device
+        )  # list of [C, D] 텐서
+
+        # 3️⃣ 모든 템플릿별 유사도 평균 계산
+        template_scores = []
+        for i, text_features in enumerate(text_features_per_t):
+            similarity_matrix = image_features @ text_features.t()  # [N, C]
+            avg_max_similarity = similarity_matrix.max(dim=1)[0].mean().item()
+            template_scores.append((avg_max_similarity, i))
+
+        # 4️⃣ 점수 기준 정렬 후 Top-K 선택
+        template_scores.sort(key=lambda x: x[0], reverse=True)
+        topk_results = template_scores[:top_k]
+        topk_template_indices = [index for score, index in topk_results]
+
+        # 5️⃣ 결과 출력
+        print(f"\n--- Top-{top_k} Template Selection Complete ---")
+        for score, index in topk_results:
+            print(f"Index {index:2d} | Template: '{templates[index]}' | Similarity: {score:.4f}")
+        print(f"Final Selected Indices: {topk_template_indices}\n")
+
+        return topk_template_indices
     def build_model(self):
         cfg = self.cfg
         classnames = self.dm.dataset.classnames
-        
+                                                 # 저장
         if torch.cuda.is_available() and cfg.USE_CUDA:
             if len(cfg.GPU) == 1:
                 self.device = torch.device("cuda:{}".format(cfg.GPU))
@@ -211,12 +659,32 @@ class CoOp(TrainerX):
         print(f"Loading CLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
         clip_model = load_clip_to_cpu(cfg)
         
+        clip_model.to(self.device)
+        with torch.no_grad():
+            texts = [f"a photo of a {c.replace('_', ' ')}." for c in classnames]
+            tok = clip.tokenize(texts).to(self.device)
+            text_emb = clip_model.encode_text(tok)
+            text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)   # [C, D]
+
+            tau = 0.07
+            S_logits = text_emb @ text_emb.t() / tau                    # [C, C]
+            S = torch.softmax(S_logits, dim=1)
+            self.text_bank = text_emb
+            self.S_class = S  
         if cfg.TRAINER.COOP.PREC == "fp32" or cfg.TRAINER.COOP.PREC == "amp":
             # CLIP's default precision is fp16
             clip_model.float()
+        templates = SELECT_TEMPLATES # utils.templates에서 가져온 Template 리스트
+        train_loader = self.dm.train_loader_x # 학습 데이터 로더 접근 가정
+        clip_model.to('cuda')
+        best_prefix = self.select_best_template_prefix(
+             clip_model, train_loader, classnames, templates, self.device
+        )
+       
+        clip_model = load_clip_to_cpu(cfg)
 
         print("Building custom CLIP")
-        self.model = CustomCLIP(cfg, classnames, clip_model)
+        self.model = CustomCLIP(cfg, classnames, clip_model,best_prefix)
 
         print("Turning off gradients in both the image and the text encoder")
         for name, param in self.model.named_parameters():
@@ -225,25 +693,18 @@ class CoOp(TrainerX):
 
         if cfg.MODEL.INIT_WEIGHTS:
             load_pretrained_weights(self.model.prompt_learner, cfg.MODEL.INIT_WEIGHTS)
-
+        self.clip_model = clip_model
         self.model.to(self.device)
         # NOTE: only give prompt_learner to the optimizer
-        self.optim = build_optimizer(self.model.prompt_learner, cfg.OPTIM)
+        self.optim = build_optimizer(self.model.prompt_learner.parameters(), cfg.OPTIM)
         self.sched = build_lr_scheduler(self.optim, cfg.OPTIM)
         self.register_model("prompt_learner", self.model.prompt_learner, self.optim, self.sched)
+        self._global_step = 0
 
         self.scaler = GradScaler() if cfg.TRAINER.COOP.PREC == "amp" else None
 
-        # Note that multi-gpu training could be slow because CLIP's size is
-        # big, which slows down the copy operation in DataParallel
-        # device_count = torch.cuda.device_count()
-        # if device_count > 1:
-        #     print(f"Multiple GPUs detected (n_gpus={device_count}), use all of them!")
-        #     self.model = nn.DataParallel(self.model)
-    
     def forward_backward(self, batch):
-        image, label = self.parse_batch_train(batch)
-        
+        image, label,domain = self.parse_batch_train(batch)
         prec = self.cfg.TRAINER.COOP.PREC
         if prec == "amp":
             with autocast():
@@ -254,32 +715,67 @@ class CoOp(TrainerX):
             self.scaler.step(self.optim)
             self.scaler.update()
         else:
-            output = self.model(image)
-            loss = F.cross_entropy(output, label)
+            if self.model.training:
+                p = 0.15
+                min_keep = 8
+
+                if p > 0.0:
+                    B = label.size(0)
+                    keep_mask = (torch.rand(B, device=label.device) > p)
+
+                    if keep_mask.sum().item() < min_keep:
+                        idx = torch.randperm(B, device=label.device)[:min_keep]
+                        keep_mask[:] = False
+                        keep_mask[idx] = True
+
+                    image = image[keep_mask]
+                    label = label[keep_mask]
+
+            output = self.model(image,label)
+            # kl_loss = self.kd_loss_with_class_graph(output, label, T_k=2.0, lam=0.3)
+            loss = F.cross_entropy(output, label)  
             self.model_backward_and_update(loss)
 
         loss_summary = {
             "loss": loss.item(),
-            "acc": compute_accuracy(output, label)[0].item(),
+            "acc": compute_accuracy(output, label)[0].item(), #check
         }
 
         if (self.batch_idx + 1) == self.num_batches:
             self.update_lr()
+        LOG_FREQ = 50 
+        if self._global_step % LOG_FREQ == 0:
+            self._log_routing_scalars_tb(self._global_step, image, label, tag="train")
+            
+            # ✅ Prompt Routing 진단 지표 추가
+            w = self._ensure_writer()
+            
+            # 1. EMA 분산의 평균/최소값 (분산 모델의 안정성 및 포용력)
+            w.add_scalar("train/ema_var_mean", self.model.ema_var.mean().item(), self._global_step)
+            w.add_scalar("train/ema_var_min", self.model.ema_var.min().item(), self._global_step)
+            
+            # 2. EMA 카운트 평균 (각 프롬프트/클래스 쌍이 얼마나 자주 업데이트되었는지)
+            w.add_scalar("train/ema_count_mean", self.model.ema_count.float().mean().item(), self._global_step)
 
+   
+        self._global_step += 1
         return loss_summary
     
     def parse_batch_train(self, batch):
         input = batch["img"]
         label = batch["label"]
+        domain = batch['domain']
         input = input.to(self.device)
         label = label.to(self.device)
-        return input, label
+        domain = domain.to(self.device)
+
+        return input, label, domain
     
     def after_train(self):
         print("Finish the whole training")
 
         do_test = not self.cfg.TEST.NO_TEST
-
+      
         # Show elapsed time
         elapsed = round(time.time() - self.time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
@@ -305,7 +801,7 @@ class CoOp(TrainerX):
             data_loader = self.test_loader
 
         print(f"Evaluate on the *{split}* set")
-
+       
         for batch_idx, batch in enumerate(tqdm(data_loader)):
             input, label = self.parse_batch_test(batch)
             output = self.model(input)

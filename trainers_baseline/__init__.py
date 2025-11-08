@@ -10,3 +10,4 @@ from .vp import VP
 from .vpt import VPT
 
 from .maple import MaPLe
+from .dual import Dual

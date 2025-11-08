@@ -18,7 +18,7 @@ GPU=$3
 # bash scripts/baseline/single.sh RN50 VPT 0
 
 
-# bash scripts/baseline/single.sh ViT-B/16 CoOp 0
+# bash scripts/baseline/single2.sh ViT-B/16 CoOp 0
 # bash scripts/baseline/single.sh ViT-B/16 CoCoOp 0
 # bash scripts/baseline/single.sh ViT-B/16 DPLCLIP 0
 # bash scripts/baseline/single.sh ViT-B/16 VP 0
@@ -53,38 +53,6 @@ GPU=$3
 #     done
 #   done
 # done
-
-DATASET=single_vlcs
-for SEED in 1
-do
-  for WARMUP in 1
-  do
-    # for DOMAIN in 'c' 'l' 'p' 's'
-    for DOMAIN in 'c' 'l' 
-
-    do
-      DIR=outputs_baseline/single-dg/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
-
-      if [ -d "$DIR" ]; then
-        echo "Results are available in ${DIR}, so skip this job"
-      else
-        echo "Run this job and save the output to ${DIR}"
-        
-        python train_baseline.py \
-          --gpu ${GPU} \
-          --backbone ${BACKBONE} \
-          --source-domains ${DOMAIN} \
-          --root ${DATA} \
-          --trainer ${TRAINER} \
-          --dataset-config-file configs/datasets/single_source/${DATASET}.yaml \
-          --config-file configs/trainers/BASELINE/${CFG}.yaml \
-          --output-dir ${DIR} \
-          --seed ${SEED} \
-          --warmup_epoch ${WARMUP}
-      fi
-    done
-  done
-done
 
 DATASET=single_office_home
 for SEED in 1

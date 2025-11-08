@@ -3,7 +3,7 @@
 source activate spg
 
 # custom config
-DATA=   # ******* your data path *******
+DATA='/workspace/data_spg'   # ******* your data path *******
 CFG=b32_ep50
 
 BACKBONE=$1 # backbone name
@@ -17,7 +17,7 @@ GPU=$3
 # bash scripts/baseline/zsclip.sh ViT-B/16 CLIP_LR 0
 
 DATASET=pacs
-for SEED in 1 2 3
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do
@@ -48,7 +48,7 @@ do
 done
 
 DATASET=vlcs
-for SEED in 1 2 3
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do
@@ -79,7 +79,7 @@ do
 done
 
 DATASET=office_home
-for SEED in 1 2 3
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do
@@ -110,7 +110,7 @@ do
 done
 
 DATASET=terra_incognita
-for SEED in 1 2 3
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do
@@ -141,7 +141,7 @@ do
 done
 
 DATASET=domainnet
-for SEED in 1 2 3
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do

@@ -220,6 +220,23 @@ def extend_cfg(cfg):
         
         cfg.TRAINER.VPT.ENABLE_CONV = False
         cfg.TRAINER.VPT.TYPE = "random"
+    
+    elif args.trainer == 'Dual':
+        cfg.TRAINER.DUAL = CN()
+        cfg.TRAINER.DUAL.N_CTX = 16
+        cfg.TRAINER.DUAL.CTX_INIT = "a photo of a"
+        cfg.TRAINER.DUAL.PREC = "fp16"
+        cfg.TRAINER.DUAL.VP = True
+        cfg.TRAINER.DUAL.NUM_TOKENS = 10
+        cfg.TRAINER.DUAL.LOCATION = "middle"
+        cfg.TRAINER.DUAL.V_DEEP = False
+        cfg.TRAINER.DUAL.DEEP_LAYERS = None # if set to be an int, then do partial-deep prompt tuning
+        cfg.TRAINER.DUAL.DROPOUT = 0.0
+        
+        cfg.TRAINER.DUAL.ENABLE_CONV = False
+        cfg.TRAINER.DUAL.TYPE = "random"
+        cfg.TRAINER.DUAL.CSC = False        # class-specific context
+        cfg.TRAINER.DUAL.CLASS_TOKEN_POSITION = "end"  # 'middle' or 'end' or 'front'
 
     elif args.trainer == 'MaPLe':
         cfg.TRAINER.MAPLE = CN()

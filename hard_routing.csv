@@ -1,0 +1,6 @@
+Method Name,Dataset Name,Domain Index,Best Test Acc (%),Epoch,Log File Path
+CoOp,pacs,a,97.9,2,/workspace/Soft-Prompt-Generation/outputs_baseline/hard_routing/CoOp/pacs/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,pacs,s,92.2,17,/workspace/Soft-Prompt-Generation/outputs_baseline/hard_routing/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,66.3,1,/workspace/Soft-Prompt-Generation/outputs_baseline/hard_routing/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,82.8,15,/workspace/Soft-Prompt-Generation/outputs_baseline/hard_routing/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,1,45.0,13,/workspace/Soft-Prompt-Generation/outputs_baseline/hard_routing/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt

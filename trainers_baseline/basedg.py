@@ -219,11 +219,13 @@ class BaseDG(TrainerX):
     def parse_batch_train(self, batch):
         input = batch["img"]        
         label = batch["label"]
+        domain = batch["domain"]
         
         input = input.to(self.device)
         label = label.to(self.device)
+        domain = batch["domain"]
     
-        return input, label
+        return input, label, domain
     
     def after_epoch(self):
         last_epoch = (self.epoch + 1) == self.max_epoch
@@ -290,7 +292,8 @@ class BaseDG(TrainerX):
         
         for batch_idx, batch in enumerate(data_loader):
             input, label = self.parse_batch_test(batch)
-            output = self.model(input)
+            #check
+            output = self.model(input,test_mode=True)
             self.evaluator.process(output, label)
 
         results = self.evaluator.evaluate()

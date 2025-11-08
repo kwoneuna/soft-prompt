@@ -131,7 +131,7 @@ class CLIP_LR(BaseDG):
                         self._per_class_res[label].append(matches_i)
             '''
             
-            self.evaluator.process(predictions, label, False)    
+            self.evaluator.process(predictions, label,False)    
 
         results = self.evaluator.evaluate()
         for k, v in results.items():
