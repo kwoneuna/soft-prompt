@@ -1,0 +1,22 @@
+Method Name,Dataset Name,Domain Index,Best Test Acc (%),Epoch,Log File Path
+CoOp,pacs,s,91.0,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,s,80.6,8,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,67.2,28,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,1,50.0,1,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
+ana,CoOp,s,91.0,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+ana,CoOp,s,80.6,8,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+ana,CoOp,l,70.6,23,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+ana,CoOp,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+ana,CoOp,1,55.9,5,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
+CoOp,pacs,s,91.0,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,s,80.6,8,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,67.2,28,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,1,50.0,1,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
+ana,CoOp,s,91.0,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+ana,CoOp,s,80.6,8,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+ana,CoOp,l,70.6,23,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+ana,CoOp,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+ana,CoOp,2,52.5,2,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/terra_incognita/b32_ep50/ViT-B16/2/seed_1/warmup_1/log.txt
+ana,CoOp,1,55.9,5,/workspace/Soft-Prompt-Generation/outputs_baseline/bootstrap_conf/ana/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt

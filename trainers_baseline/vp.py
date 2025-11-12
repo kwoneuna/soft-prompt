@@ -121,8 +121,8 @@ class VP(BaseDG):
         self.best_val_test_result = -np.inf
 
         print(f"Loading CLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
-        # clip_model = load_clip_to_cpu(cfg)
-        clip_model = self.load_clip(cfg)
+        clip_model = load_clip_to_cpu(cfg)
+        # clip_model = self.load_clip(cfg)
 
         if cfg.TRAINER.VP.PREC == "fp32" or cfg.TRAINER.VP.PREC == "amp":
             clip_model.float()  # CLIP's default precision is fp16

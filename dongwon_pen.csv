@@ -1,0 +1,23 @@
+Method Name,Dataset Name,Domain Index,Best Test Acc (%),Epoch,Log File Path
+CoOp,pacs,s,91.5,22,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,s,81.8,8,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,67.0,1,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,2,55.2,34,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/terra_incognita/b32_ep50/ViT-B16/2/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,1,53.1,17,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
+kl001,CoOp,s,91.7,5,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+kl001,CoOp,s,79.6,1,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+kl001,CoOp,l,68.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+kl001,CoOp,a,82.7,2,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+kl001,CoOp,c,72.2,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt
+CoOp,pacs,s,91.5,22,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,s,81.8,8,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,67.0,1,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,83.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,2,55.2,34,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/terra_incognita/b32_ep50/ViT-B16/2/seed_1/warmup_1/log.txt
+CoOp,terra_incognita,1,53.1,17,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/CoOp/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
+kl001,CoOp,s,91.7,5,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+kl001,CoOp,s,79.6,1,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+kl001,CoOp,l,68.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+kl001,CoOp,a,82.7,2,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+kl001,CoOp,c,72.2,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt

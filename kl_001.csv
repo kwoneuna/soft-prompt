@@ -1,0 +1,6 @@
+Method Name,Dataset Name,Domain Index,Best Test Acc (%),Epoch,Log File Path
+CoOp,pacs,s,91.7,5,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,s,79.6,1,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+CoOp,vlcs,l,68.3,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+CoOp,office_home,a,82.7,2,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+CoOp,office_home,c,72.2,3,/workspace/Soft-Prompt-Generation/outputs_baseline/dongwon_pen/kl001/CoOp/office_home/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt

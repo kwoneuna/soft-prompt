@@ -102,7 +102,7 @@ class CustomCLIP(Base_CustomCLIP):
         else:   
             image_features = self.image_encoder(image.type(self.dtype), vctx, deep_vctx)    
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-      
+
         logit_scale = self.logit_scale.exp()
         logits = logit_scale * image_features @ text_features.t()
 
@@ -163,7 +163,7 @@ class VPT(BaseDG):
         self.sched = build_lr_scheduler(self.optim, cfg.OPTIM)
         self.register_model("prompt_learner", self.model.prompt_learner, self.optim, self.sched)
         self.scaler = GradScaler() if cfg.TRAINER.VPT.PREC == "amp" else None
-   
+
     def forward_backward(self, batch):
         images, labels = self.parse_batch_train(batch)
         prec = self.cfg.TRAINER.VPT.PREC
@@ -177,7 +177,6 @@ class VPT(BaseDG):
             self.scaler.step(self.optim)
             self.scaler.update()
         else:
-            lambda_gmm = 0.1
             output = self.model(images)
             loss = F.cross_entropy(output, labels)
             self.model_backward_and_update(loss)

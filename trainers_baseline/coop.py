@@ -205,7 +205,18 @@ class CustomCLIP(nn.Module):
         # for logging
         self.mf_sqdist = None
 
-
+    @torch.no_grad()
+    def predict_per_prompt(self, image):
+        """
+        평가 용: 입력 이미지를 받아 프롬프트별 로짓을 stack하여 반환.
+        Returns:
+            logits_stack: [K, B, C]  (forward의 내부 스케일링/정규화 그대로 적용된 로짓)
+        """
+        img_feat = self.image_encoder(image.type(self.dtype))
+        img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)  # [B,D]
+        logits_per_prompt, _ = self._compute_logits_and_sqdist(img_feat)  # list[K] of [B,C]
+        logits_stack = torch.stack(logits_per_prompt, dim=0)  # [K,B,C]
+        return logits_stack
     # ---- 내부 유틸: PAC-Bayes style image feature 조정 + sqdist 계산 ----
     def _compute_logits_and_sqdist(self, img_feat):
         """
@@ -249,7 +260,7 @@ class CustomCLIP(nn.Module):
             # mismatch가 큰 이미지일수록 scale 줄어듦
             scale = f_msq / (f_msq + self.pac_lambda * kl_like)     # [B,1]
             scale = torch.clamp(scale, min=0.0, max=1.0)
-
+        
             adj_feat = img_feat * scale                                           # [B,D]
 
             # 최종 logits (prompt k에 대해)
@@ -343,7 +354,40 @@ class CustomCLIP(nn.Module):
             "acc_top_prompt": acc_top_prompt,
             "weighted_margin_mean": weighted_margin_mean,
         }
-        
+    @torch.no_grad()
+    def compute_prompt_text_features(self):
+        """
+        현재 각 PromptLearner의 프롬프트로부터 텍스트 임베딩을 구해 반환.
+        Returns:
+            list[K] of [C, D] (L2-normalized)
+        """
+        tfeats = []
+        for pl in self.prompt_learner:
+            prompts = pl()  # [C, L, dim]
+            tfeat = self.text_encoder(prompts, self.tokenized_prompts)  # [C, D]
+            tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
+            tfeats.append(tfeat.detach())
+        return tfeats
+
+    @torch.no_grad()
+    def compute_inter_prompt_similarity(self, reduce: str = "mean"):
+        """
+        프롬프트 k, l 쌍별 텍스트 임베딩 유사도(코사인).
+        같은 클래스 c에서 나온 임베딩끼리 비교하여:
+        - reduce='mean'  -> 클래스 평균 KxK 행렬
+        - reduce='none'  -> 클래스별 KxK(텐서 shape: [C, K, K])
+        """
+        tfeats = self.compute_prompt_text_features()  # list[K] of [C, D]
+        K = len(tfeats)
+        C = tfeats[0].shape[0]
+        T = torch.stack(tfeats, dim=0)               # [K, C, D]
+        # 클래스별 KxK: for each c, sim[k,l] = dot(T[k,c], T[l,c])
+        Tperm = T.permute(1, 0, 2).contiguous()      # [C, K, D]
+        sim_per_class = torch.matmul(Tperm, Tperm.transpose(1, 2))  # [C, K, K]
+        if reduce == "mean":
+            return sim_per_class.mean(dim=0)         # [K, K]
+        return sim_per_class                         # [C, K, K]
+    
     def forward(self, image, label=None):
         # 1) image posterior feature
         img_feat = self.image_encoder(image.type(self.dtype))
@@ -359,26 +403,28 @@ class CustomCLIP(nn.Module):
 
         # 3) 평가 모드: 단순 평균 앙상블
         stacked_logits = torch.stack(logits_per_prompt, dim=0)         # [K,B,C]
-        avg_logits = stacked_logits.mean(dim=0)                        # [B,C]
         if label is None:
-            # (a) 로짓을 확률로 변환
-            probs = F.softmax(stacked_logits, dim=-1)                  # [K, B, C]
+            # Step 1: 각 프롬프트의 예측 클래스를 찾습니다.
+            # pred_idx: [K, B] - 프롬프트 k가 샘플 b에 대해 예측한 클래스 인덱스
+            pred_idx = stacked_logits.argmax(dim=-1)                   # [K, B]
+            mf_sqdist_T = mf_sqdist.permute(1, 0, 2)                   # [B, K, C]
+            pred_idx_T = pred_idx.t()
             
-            # (b) 신뢰도 점수 (최대 확률) 계산
-            # confidence: [K, B]
-            confidence, _ = probs.max(dim=-1)                          # [K, B]
+            min_dist = torch.gather(
+                mf_sqdist_T, dim=2,
+                index=pred_idx_T.unsqueeze(-1)
+            ).squeeze(-1)                                              # [B, K]
             
-            # (c) 신뢰도를 정규화하여 가중치 계산
-            # weights: [K, B]
-            weights = confidence / confidence.sum(dim=0, keepdim=True).clamp_min(1e-9)
-            
-            # (d) 가중 앙상블 수행 (element-wise multiplication 후 K차원 합산)
-            # weighted_logits = sum_k (weights_k * logits_k)
-            # weights: [K, B, 1]로 확장, stacked_logits: [K, B, C]
-            weighted_logits = (weights.unsqueeze(-1) * stacked_logits).sum(dim=0)  # [B, C]
-            
+            distance_energy = -min_dist
+            weights = F.softmax(self.routing_gamma * distance_energy, dim=1) # [B, K]
+
+            # Step 5: 가중 앙상블 (Weighted Ensemble)
+            weighted_logits = (weights.unsqueeze(-1) *
+                               torch.stack(logits_per_prompt, dim=1)
+                               ).sum(dim=1)                                # [B,C]
+
             return weighted_logits
-            # return avg_logits
+
 
         # -------------------------------
         # 4) 학습 모드: 프롬프트별 부트스트랩 샘플링으로 var 추정 & routing
@@ -410,6 +456,7 @@ class CustomCLIP(nn.Module):
         var_all = torch.full((K, C), self.default_var,
                             dtype=img_feat.dtype, device=img_feat.device)
         var_eps = getattr(self, "var_eps", 1e-6)
+        #prompt k가 클래스 c를 표현할때의 불확실성 (분산)
         for c in range(C):
             mask_kb = (label_idx_kb == c)                                             # [K,B]
             # 합과 개수를 한 번에 계산
@@ -424,8 +471,10 @@ class CustomCLIP(nn.Module):
             v_c[has_any] = (sum_sq[has_any] / cnt[has_any].to(sum_sq.dtype)) + var_eps
             var_all[:, c] = torch.where(has_any, v_c, var_all[:, c])
 
-        # (e) routing용 에너지: 원배치 기준(정렬 보존)
-        #     pos_sqdist: [K,B] (원배치 인덱싱), pos_var: [K,B] (프롬프트별/클래스별 분산)
+       #각 샘플 b에 대해 각 프롬프트가 클래스를 얼마나 잘 설명하는지 측정
+       #샘플b가 잘 설명할수록 점수 높아짐
+       #가우시안 확률분포의 log likelihood에서 상수항 제외
+       
         pos_sqdist = mf_sqdist[:, torch.arange(B, device=img_feat.device), label_idx]  # [K,B]
         pos_var = var_all[:, label_idx]                                               # [K,B]
 
@@ -440,8 +489,21 @@ class CustomCLIP(nn.Module):
         for k in range(K):
             w_k = weights[:, k].unsqueeze(1)                                          # [B,1]
             weighted_logits = weighted_logits + w_k * logits_per_prompt[k]            # [B,C]
+        correct_mask = torch.zeros_like(mf_sqdist, dtype=torch.bool).scatter_(
+            2, label_idx.unsqueeze(0).unsqueeze(-1).expand(K, B, 1), 
+            True
+        )
+        negative_mask = ~correct_mask
+        mf_sqdist_masked = mf_sqdist.masked_fill(correct_mask, float('inf'))
+        neg_sqdist, _ = mf_sqdist_masked.min(dim=-1)
+        margin = 0.2  # 마진 값
+        dist_gap = neg_sqdist - pos_sqdist # [K, B]
+        distance_penalty_raw = torch.relu(margin - dist_gap) 
 
-        return weighted_logits
+        # 프롬프트별 가중치(weights)를 적용한 페널티 (라우팅 결과를 이용)
+        # weights: [B, K] -> weights.t(): [K, B]
+        distance_penalty = (weights.t() * distance_penalty_raw).sum() / B
+        return weighted_logits, distance_penalty
 
 
     # ---- Forward ----
@@ -521,7 +583,8 @@ class CoOp(TrainerX):
 
     def check_cfg(self, cfg):
         assert cfg.TRAINER.COOP.PREC in ["fp16", "fp32", "amp"]
-
+    # --- class CustomCLIP(nn.Module) 내부에 추가 ---
+    
     # ---- TensorBoard helpers ----
     def _ensure_writer(self, initialize=False):
         if hasattr(self, "writer") and self.writer is not None and not initialize:
@@ -539,6 +602,27 @@ class CoOp(TrainerX):
         self.writer = SummaryWriter(log_dir=tb_dir)
         print(f"[TensorBoard] Initialized writer in: {self.writer.log_dir}")
         return self.writer
+# --- class CoOp(TrainerX) 내부, 다른 TB 헬퍼들과 나란히 추가 ---
+    def _log_prompt_similarity_tb(self, global_step, tag="train"):
+        """
+        프롬프트-프롬프트 유사도(클래스 평균 KxK) + 요약 지표를 TensorBoard에 기록.
+        """
+        w = self._ensure_writer()
+        sim_mat = self.model.compute_inter_prompt_similarity(reduce="mean")  # [K, K]
+        K = sim_mat.shape[0]
+
+        # 개별 pair 스칼라
+        for k in range(K):
+            for l in range(K):
+                w.add_scalar(f"{tag}/prompt_sim/p{k}_p{l}", sim_mat[k, l].item(), global_step)
+
+        # 오프대각 요약 (mean/min) 및 히스토그램
+        mask_off = ~torch.eye(K, dtype=torch.bool, device=sim_mat.device)
+        offdiag = sim_mat[mask_off]
+        if offdiag.numel() > 0:
+            w.add_scalar(f"{tag}/prompt_sim_offdiag/mean", offdiag.mean().item(), global_step)
+            w.add_scalar(f"{tag}/prompt_sim_offdiag/min", offdiag.min().item(), global_step)
+            w.add_histogram(f"{tag}/prompt_sim_offdiag/hist", offdiag.detach().cpu().numpy(), global_step)
 
     def _log_routing_scalars_tb(self, global_step, image, label, tag="train"):
         max_b = getattr(self, "viz_max_batch", 64)
@@ -700,8 +784,8 @@ class CoOp(TrainerX):
             self.scaler.step(self.optim)
             self.scaler.update()
         else:
-            output = self.model(image, label)
-            loss = F.cross_entropy(output, label)
+            output,penalty = self.model(image, label)
+            loss = F.cross_entropy(output, label) + 0.01*penalty
             self.optim.zero_grad()
             loss.backward()
             self.optim.step()
@@ -717,6 +801,7 @@ class CoOp(TrainerX):
         LOG_FREQ = 50
         if self._global_step % LOG_FREQ == 0:
             self._log_routing_scalars_tb(self._global_step, image, label, tag="train")
+            self._log_prompt_similarity_tb(self._global_step, tag="train")  # ← 추가
 
         self._global_step += 1
         return loss_summary
@@ -740,7 +825,7 @@ class CoOp(TrainerX):
         elapsed = str(datetime.timedelta(seconds=elapsed))
         print(f"Elapsed: {elapsed}")
         self.close_writer()
-
+   
     # ---- Test ----
     @torch.no_grad()
     def test(self, split=None):
@@ -759,17 +844,57 @@ class CoOp(TrainerX):
 
         print(f"Evaluate on the *{split}* set")
 
+        # --- 프롬프트별 정확도 누적 준비 ---
+        K = self.model.K
+        correct_per_prompt = torch.zeros(K, device=self.device, dtype=torch.long)
+        total_samples = 0
+
         for _, batch in enumerate(tqdm(data_loader)):
             x, y = self.parse_batch_test(batch)
+
+            # (A) 기존 evaluator(앙상블 출력)
             out = self.model(x)
             self.evaluator.process(out, y)
 
+            # (B) 프롬프트별 로짓 -> 프롬프트별 예측
+            lp = self.model.predict_per_prompt(x)        # [K,B,C]
+            preds_k = lp.argmax(dim=-1)                  # [K,B]
+            # 배치별 누적
+            total_samples += y.size(0)
+            # 각 k 프롬프트의 정답 개수 더하기
+            for k in range(K):
+                correct_per_prompt[k] += (preds_k[k] == y).sum()
+
+        # 기존 총괄 지표
         results = self.evaluator.evaluate()
         for k, v in results.items():
             tag = f"{split}/{k}"
             self.write_scalar(tag, v, self.epoch)
 
+        # --- 프롬프트별 정확도 계산/로깅 ---
+        acc_per_prompt = (correct_per_prompt.float() / float(total_samples) * 100.0).tolist()
+
+        # TensorBoard에 기록
+        w = self._ensure_writer()
+        for k in range(K):
+            w.add_scalar(f"{split}/acc_per_prompt/p{k}", acc_per_prompt[k], self.epoch)
+
+        # 콘솔 출력
+        pretty = " | ".join([f"p{k}: {acc_per_prompt[k]:.2f}%" for k in range(K)])
+        print(f"[{split}] per-prompt acc -> {pretty}")
+
         return list(results.values())[0]
+        # for _, batch in enumerate(tqdm(data_loader)):
+        #     x, y = self.parse_batch_test(batch)
+        #     out = self.model(x)
+        #     self.evaluator.process(out, y)
+
+        # results = self.evaluator.evaluate()
+        # for k, v in results.items():
+        #     tag = f"{split}/{k}"
+        #     self.write_scalar(tag, v, self.epoch)
+
+        # return list(results.values())[0]
 
     # ---- After each epoch: track best models ----
     def after_epoch(self):
