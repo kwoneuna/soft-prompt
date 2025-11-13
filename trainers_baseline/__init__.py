@@ -11,3 +11,4 @@ from .vpt import VPT
 
 from .maple import MaPLe
 from .dual import Dual
+from .trip import TRIP

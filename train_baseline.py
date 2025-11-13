@@ -188,6 +188,14 @@ def extend_cfg(cfg):
         cfg.TRAINER.COOP.CSC = False        # class-specific context
         cfg.TRAINER.COOP.CTX_INIT = "a photo of a"      # initialization words
         cfg.TRAINER.COOP.CLASS_TOKEN_POSITION = "end"  # 'middle' or 'end' or 'front'
+    
+    elif args.trainer == 'TRIP':
+        cfg.TRAINER.TRIP = CN()
+        cfg.TRAINER.TRIP.PREC = "fp16"      # fp16, fp32, amp
+        cfg.TRAINER.TRIP.N_CTX = 16         # number of context vectors
+        cfg.TRAINER.TRIP.CSC = False        # class-specific context
+        cfg.TRAINER.TRIP.CTX_INIT = "a photo of a"      # initialization words
+        cfg.TRAINER.TRIP.CLASS_TOKEN_POSITION = "end"  # 'middle' or 'end' or 'front'
         
     elif args.trainer == 'CoCoOp':
         cfg.TRAINER.COCOOP = CN()
