@@ -56,95 +56,96 @@ GPU=$3
 #   done
 # done
 
-DATASET=vlcs
-for SEED in 1 
-do
-  for WARMUP in 1
-  do
-    for DOMAIN in 'l' 's'
-    do
-      DIR=outputs_baseline/multi-dg/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
-
-      if [ -d "$DIR" ]; then
-        echo "Results are available in ${DIR}, so skip this job"
-      else
-        echo "Run this job and save the output to ${DIR}"
-        
-        python train_baseline.py \
-          --gpu ${GPU} \
-          --backbone ${BACKBONE} \
-          --target-domains ${DOMAIN} \
-          --root ${DATA} \
-          --trainer ${TRAINER} \
-          --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
-          --config-file configs/trainers/BASELINE/${CFG}.yaml \
-          --output-dir ${DIR} \
-          --seed ${SEED} \
-          --warmup_epoch ${WARMUP}
-      fi
-    done
-  done
-done
 
 DATASET=office_home
 for SEED in 1 
 do
   for WARMUP in 1
   do
-    for DOMAIN in  'c' 'p' 'r'
+    for DOMAIN in   'a'
     do
-      DIR=outputs_baseline/multi-dg/${TRAINER}/imgtextcov/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+      DIR=outputs_baseline/multi-dg/${TRAINER}/channel2/10/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
 
-      if [ -d "$DIR" ]; then
-        echo "Results are available in ${DIR}, so skip this job"
-      else
-        echo "Run this job and save the output to ${DIR}"
-        
-        python train_baseline.py \
-          --gpu ${GPU} \
-          --backbone ${BACKBONE} \
-          --target-domains ${DOMAIN} \
-          --root ${DATA} \
-          --trainer ${TRAINER} \
-          --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
-          --config-file configs/trainers/BASELINE/${CFG}.yaml \
-          --output-dir ${DIR} \
-          --seed ${SEED} \
-          --warmup_epoch ${WARMUP}
-      fi
+      # if [ -d "$DIR" ]; then
+      #   echo "Results are available in ${DIR}, so skip this job"
+      # else
+      echo "Run this job and save the output to ${DIR}"
+      
+      python train_baseline.py \
+        --gpu ${GPU} \
+        --backbone ${BACKBONE} \
+        --target-domains ${DOMAIN} \
+        --root ${DATA} \
+        --trainer ${TRAINER} \
+        --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
+        --config-file configs/trainers/BASELINE/${CFG}.yaml \
+        --output-dir ${DIR} \
+        --seed ${SEED} \
+        --warmup_epoch ${WARMUP}
+      # fi
     done
   done
 done
 
-DATASET=terra_incognita
-for SEED in 1 
-do
-  for WARMUP in 1
-  do
-    for DOMAIN in '1' '2' '3' '4'
-    do
-      DIR=outputs_baseline/multi-dg/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+# DATASET=vlcs
+# for SEED in 1 
+# do
+#   for WARMUP in 1
+#   do
+#     for DOMAIN in 'l'
+#     do
+#       DIR=outputs_baseline/multi-dg/${TRAINER}/test/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
 
-      if [ -d "$DIR" ]; then
-        echo "Results are available in ${DIR}, so skip this job"
-      else
-        echo "Run this job and save the output to ${DIR}"
+#       if [ -d "$DIR" ]; then
+#         echo "Results are available in ${DIR}, so skip this job"
+#       else
+#         echo "Run this job and save the output to ${DIR}"
         
-        python train_baseline.py \
-          --gpu ${GPU} \
-          --backbone ${BACKBONE} \
-          --target-domains ${DOMAIN} \
-          --root ${DATA} \
-          --trainer ${TRAINER} \
-          --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
-          --config-file configs/trainers/BASELINE/${CFG}.yaml \
-          --output-dir ${DIR} \
-          --seed ${SEED} \
-          --warmup_epoch ${WARMUP}
-      fi
-    done
-  done
-done
+#         python train_baseline.py \
+#           --gpu ${GPU} \
+#           --backbone ${BACKBONE} \
+#           --target-domains ${DOMAIN} \
+#           --root ${DATA} \
+#           --trainer ${TRAINER} \
+#           --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
+#           --config-file configs/trainers/BASELINE/${CFG}.yaml \
+#           --output-dir ${DIR} \
+#           --seed ${SEED} \
+#           --warmup_epoch ${WARMUP}
+#       fi
+#     done
+#   done
+# done
+
+# DATASET=terra_incognita
+# for SEED in 1 
+# do
+#   for WARMUP in 1
+#   do
+#     for DOMAIN in '1' '2' '3' '4'
+#     do
+#       DIR=outputs_baseline/multi-dg/${TRAINER}/imgtextcov/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+
+#       if [ -d "$DIR" ]; then
+#         echo "Results are available in ${DIR}, so skip this job"
+#       else
+#         echo "Run this job and save the output to ${DIR}"
+        
+#         python train_baseline.py \
+#           --gpu ${GPU} \
+#           --backbone ${BACKBONE} \
+#           --target-domains ${DOMAIN} \
+#           --root ${DATA} \
+#           --trainer ${TRAINER} \
+#           --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
+#           --config-file configs/trainers/BASELINE/${CFG}.yaml \
+#           --output-dir ${DIR} \
+#           --seed ${SEED} \
+#           --warmup_epoch ${WARMUP}
+#       fi
+#     done
+#   done
+# done
 
 # DATASET=domainnet
 # for SEED in 1 2 3

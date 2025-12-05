@@ -148,6 +148,53 @@ class PromptLearner(nn.Module):
 
         return prompts
 
+class ChannelWiseTransform(nn.Module):
+    """cwT: f' = gamma ⊙ f + beta (per-channel scale & shift)"""
+    def __init__(self, dim):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.ones(dim))
+        self.beta = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x):
+        # x: (..., dim)
+        return x * self.gamma + self.beta
+
+
+class CATHead(nn.Module):
+    """
+    DePT의 Channel Adjusted Transfer (CAT) head.
+    - 이미지/텍스트 feature에 각각 cwT 적용 (논문 v1에서 shared cwT보다 성능 좋다고 보고). :contentReference[oaicite:1]{index=1}
+    - 그 뒤 같은 Linear classifier에 넣어서 class logits 생성.
+    """
+    def __init__(self, dim, n_cls, use_two_cwt: bool = True):
+        super().__init__()
+        self.use_two_cwt = use_two_cwt
+        if use_two_cwt:
+            self.cwt_img = ChannelWiseTransform(dim)
+            self.cwt_txt = ChannelWiseTransform(dim)
+        else:
+            self.cwt_shared = ChannelWiseTransform(dim)
+
+        self.fc = nn.Linear(dim, n_cls)
+
+    def forward(self, img_feat, txt_feat=None):
+        """
+        img_feat: (B, dim)
+        txt_feat: (B, dim) 또는 None
+        return:
+            logits_img: (B, C)
+            logits_txt: (B, C) 또는 None
+        """
+        if self.use_two_cwt:
+            img_t = self.cwt_img(img_feat)
+            txt_t = self.cwt_txt(txt_feat) if txt_feat is not None else None
+        else:
+            img_t = self.cwt_shared(img_feat)
+            txt_t = self.cwt_shared(txt_feat) if txt_feat is not None else None
+
+        logits_img = self.fc(img_t)
+        logits_txt = self.fc(txt_t) if txt_t is not None else None
+        return logits_img, logits_txt
 
 class CustomCLIP(nn.Module):
     def __init__(self, cfg, classnames, clip_model):
@@ -163,23 +210,118 @@ class CustomCLIP(nn.Module):
         self.prompts = torch.tensor(0)
         self.token_prompts = torch.tensor(0)
         self.logit = -1
+        # === DePT: CAT head 추가 ===
+        feat_dim = clip_model.ln_final.weight.shape[0]  # CLIP text feature dim (image도 동일)
+        n_cls = len(classnames)
+        self.cat_head = CATHead(dim=feat_dim, n_cls=n_cls, use_two_cwt=True)
 
+        self.lambda_cat = 0.7
+        self.use_text_in_cat = True
+    
     def forward(self, image):
+        """기본 ITM head만 사용하는 기존 CoOp 스타일 forward (호환용)."""
+        logits_itm, _, _ = self.encode_image_text(image)
+        return logits_itm
+
+    def encode_image_text(self, image):
+        """ITM head용 image/text feature 및 logits 계산 (기존 forward 내용)."""
+        # image: (B, C, H, W)
         self.image_features = self.image_encoder(image.type(self.dtype))
-        
+
         prompts = self.prompt_learner()
         self.prompts = prompts
         self.token_prompts = self.tokenized_prompts
         self.text_features = self.text_encoder(prompts, self.tokenized_prompts)
 
+        # 정규화 (CLIP 스타일)
         self.image_features = self.image_features / self.image_features.norm(dim=-1, keepdim=True)
         self.text_features = self.text_features / self.text_features.norm(dim=-1, keepdim=True)
 
         logit_scale = self.logit_scale.exp()
         self.logit = logit_scale
-        logits = logit_scale * self.image_features @ self.text_features.t()
+        logits_itm = logit_scale * self.image_features @ self.text_features.t()  # (B, C)
 
-        return logits
+        return logits_itm, self.image_features, self.text_features
+    def forward_dept(
+        self,
+        image,
+        label=None,
+        lambda_cat=None,
+        use_cat=True,
+        use_fusion=True,
+        use_text_in_cat=None,
+        return_loss=False,
+    ):
+        """
+        DePT forward.
+        - label이 None이면 pure inference 모드 (보통 test).
+        - label이 있으면 dual-head loss L = γ L_CAT + (1-γ)L_ITM 계산.
+        """
+        if lambda_cat is None:
+            lambda_cat = self.lambda_cat
+        if use_text_in_cat is None:
+            use_text_in_cat = self.use_text_in_cat
+
+        logits_itm, img_feat, txt_feat_all = self.encode_image_text(image)  # (B,C), (B,D), (C,D)
+
+        # --------- 학습이 아니거나 CAT 안 쓸 때: 그냥 ITM만 ---------
+        if (label is None) or (not use_cat):
+            if not use_fusion:
+                if return_loss:
+                    return logits_itm, None, {}
+                return logits_itm
+
+            # (label이 없으면 CAT로부터 base-specific 정보도 쓸 수 없음)
+            if return_loss:
+                return logits_itm, None, {}
+            return logits_itm
+
+        # --------- CAT head로 L_CAT 계산 ---------
+        # label: (B,)
+        # 각 샘플의 GT 클래스 텍스트 feature 가져오기
+        if use_text_in_cat:
+            # txt_feat_all: (C, D) -> (B, D)
+            txt_feat_per_sample = txt_feat_all[label]
+        else:
+            txt_feat_per_sample = None
+
+        # CAT head에서 이미지/텍스트 각각 logits 계산
+        logits_cat_img, logits_cat_txt = self.cat_head(img_feat, txt_feat_per_sample)
+
+        # L_ITM: 원래 ITM head 분류 손실
+        loss_itm = F.cross_entropy(logits_itm, label)
+
+        # L_CAT: 이미지 + (옵션) 텍스트 feature 둘 다 사용
+        if logits_cat_txt is not None:
+            logits_cat = torch.cat([logits_cat_img, logits_cat_txt], dim=0)   # (2B, C)
+            labels_cat = torch.cat([label, label], dim=0)
+        else:
+            logits_cat = logits_cat_img
+            labels_cat = label
+
+        loss_cat = F.cross_entropy(logits_cat, labels_cat)
+
+        loss = lambda_cat * loss_cat + (1.0 - lambda_cat) * loss_itm
+
+        # --------- Test-time fusion용 logits (base task에서 사용) ---------
+        if use_fusion:
+            # 논문 Eq.(8): p = γ P_CAT + (1-γ) P_ITM
+            probs_itm = F.softmax(logits_itm, dim=-1)
+            probs_cat_img = F.softmax(logits_cat_img, dim=-1)
+            probs = lambda_cat * probs_cat_img + (1.0 - lambda_cat) * probs_itm
+            logits_fused = torch.log(probs + 1e-8)  # 그냥 log-prob로 만들어 CE에 넣을 수 있게
+        else:
+            logits_fused = logits_itm
+
+        if return_loss:
+            extra = {
+                "loss_itm": loss_itm.detach(),
+                "loss_cat": loss_cat.detach(),
+            }
+            return logits_fused, loss, extra
+
+        return logits_fused
+
     
     
 @TRAINER_REGISTRY.register()
@@ -218,9 +360,11 @@ class CoOp(TrainerX):
         print("Building custom CLIP")
         self.model = CustomCLIP(cfg, classnames, clip_model)
 
-        print("Turning off gradients in both the image and the text encoder")
+        print("Turning off gradients in CLIP encoders (image/text), keep prompt & CAT head trainable")
         for name, param in self.model.named_parameters():
-            if "prompt_learner" not in name:
+            if ("prompt_learner" in name) or ("cat_head" in name):
+                param.requires_grad_(True)
+            else:
                 param.requires_grad_(False)
 
         if cfg.MODEL.INIT_WEIGHTS:
@@ -228,9 +372,11 @@ class CoOp(TrainerX):
 
         self.model.to(self.device)
         # NOTE: only give prompt_learner to the optimizer
-        self.optim = build_optimizer(self.model.prompt_learner, cfg.OPTIM)
+        params = list(self.model.prompt_learner.parameters()) + list(self.model.cat_head.parameters())
+        self.optim = build_optimizer(params, cfg.OPTIM)
         self.sched = build_lr_scheduler(self.optim, cfg.OPTIM)
         self.register_model("prompt_learner", self.model.prompt_learner, self.optim, self.sched)
+        self.register_model("cat_head", self.model.cat_head, self.optim, self.sched)
 
         self.scaler = GradScaler() if cfg.TRAINER.COOP.PREC == "amp" else None
 
@@ -243,30 +389,69 @@ class CoOp(TrainerX):
     
     def forward_backward(self, batch):
         image, label = self.parse_batch_train(batch)
-        
+        use_dept = True
         prec = self.cfg.TRAINER.COOP.PREC
-        if prec == "amp":
-            with autocast():
+
+        if use_dept:
+            lambda_cat = 0.7
+            use_fusion = True
+            if prec == "amp":
+                with autocast():
+                    output, loss, extra = self.model.forward_dept(
+                        image,
+                        label=label,
+                        lambda_cat=lambda_cat,
+                        use_cat=True,
+                        use_fusion=use_fusion,
+                        return_loss=True,
+                    )
+                self.optim.zero_grad()
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optim)
+                self.scaler.update()
+            else:
+                output, loss, extra = self.model.forward_dept(
+                    image,
+                    label=label,
+                    lambda_cat=lambda_cat,
+                    use_cat=True,
+                    use_fusion=use_fusion,
+                    return_loss=True,
+                )
+                self.model_backward_and_update(loss)
+
+            loss_summary = {
+                "loss": loss.item(),
+                "loss_itm": extra.get("loss_itm", loss).item(),
+                "loss_cat": extra.get("loss_cat", loss).item(),
+                "acc": compute_accuracy(output, label)[0].item(),
+            }
+
+        else:
+            # DePT 끈 상태: 기존 CoOp 학습
+            if prec == "amp":
+                with autocast():
+                    output = self.model(image)
+                    loss = F.cross_entropy(output, label)
+                self.optim.zero_grad()
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optim)
+                self.scaler.update()
+            else:
                 output = self.model(image)
                 loss = F.cross_entropy(output, label)
-            self.optim.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optim)
-            self.scaler.update()
-        else:
-            output = self.model(image)
-            loss = F.cross_entropy(output, label)
-            self.model_backward_and_update(loss)
+                self.model_backward_and_update(loss)
 
-        loss_summary = {
-            "loss": loss.item(),
-            "acc": compute_accuracy(output, label)[0].item(),
-        }
+            loss_summary = {
+                "loss": loss.item(),
+                "acc": compute_accuracy(output, label)[0].item(),
+            }
 
         if (self.batch_idx + 1) == self.num_batches:
             self.update_lr()
 
         return loss_summary
+
     
     def parse_batch_train(self, batch):
         input = batch["img"]
@@ -308,8 +493,29 @@ class CoOp(TrainerX):
 
         for batch_idx, batch in enumerate(tqdm(data_loader)):
             input, label = self.parse_batch_test(batch)
-            output = self.model(input)
+
+            use_dept = True
+            if use_dept:
+                # base/new 구분해서 fusion 여부 결정
+                if split == "val":
+                    use_fusion = True
+                else:  # split == "test" -> new task
+                    use_fusion = False
+
+                # test에서는 label이 없으므로 loss 계산 없이 forward_dept 사용
+                output = self.model.forward_dept(
+                    input,
+                    label=None,
+                    lambda_cat=0.7,
+                    use_cat=True,
+                    use_fusion=use_fusion,
+                    return_loss=False,
+                )
+            else:
+                output = self.model(input)
+
             self.evaluator.process(output, label)
+
 
         results = self.evaluator.evaluate()
 

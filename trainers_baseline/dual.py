@@ -10,6 +10,7 @@ from dassl.optim import build_optimizer, build_lr_scheduler
 
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+import itertools
 
 from trainers_baseline.basedg import *
 from utils.clip_part import *
@@ -205,29 +206,15 @@ class CustomCLIP(Base_CustomCLIP):
         self.visual_prompt_learner = VisualPromptLearner(cfg, classnames, clip_model)
         # self.tokenized_prompts = self.prompt_learner.tokenized_prompts
         # 1. 텍스트 프롬프트 학습기 (CoOp 스타일)
-        self.num_domains = 3
+        self.num_prompt = 3
         
-        self.domain_text_prompt_learners = nn.ModuleList([
-            text_PromptLearner(cfg, classnames, clip_model) for _ in range(self.num_domains)
+        self.prompt_learner = nn.ModuleList([
+            text_PromptLearner(cfg, classnames, clip_model)
+            for i in range(self.num_prompt)
         ])
-        # 2. 도메인 불변 텍스트 프롬프트 (1개)
-        self.invariant_text_prompt_learner = text_PromptLearner(cfg, classnames, clip_model)
-
-        # 3. 도메인 특화 시각 프롬프트 (N개) - VPT 스타일
-        self.domain_visual_prompt_learners = nn.ModuleList([
-            VisualPromptLearner(cfg, classnames, clip_model) for _ in range(self.num_domains)
-        ])
-        
-        # 4. 도메인별 이미지 어댑터 (Adapter for Image Features)
-        ctx_dim = clip_model.ln_final.weight.shape[0]
-        self.image_adapters = nn.ModuleList([
-            nn.Linear(ctx_dim, ctx_dim) for _ in range(self.num_domains)
-        ])
-        for adapter in self.image_adapters:
-            nn.init.constant_(adapter.weight, 0.)
-            nn.init.constant_(adapter.bias, 0.)
-        self.tokenized_prompts = self.domain_text_prompt_learners[0].tokenized_prompts
-        self.text_encoder = TextEncoder(cfg, clip_model, self.domain_text_prompt_learners[0])
+        self.tokenized_prompts = self.prompt_learner[0].tokenized_prompts
+        self.image_encoder = clip_model.visual
+        self.text_encoder = TextEncoder(cfg, clip_model, self.prompt_learner[0])
         # self.text_prompt_learner = text_PromptLearner(cfg, classnames, clip_model)
         # self.tokenized_prompts = self.text_prompt_learner.tokenized_prompts
         # self.text_encoder = TextEncoder(cfg, clip_model, self.text_prompt_learner)
@@ -236,74 +223,188 @@ class CustomCLIP(Base_CustomCLIP):
             self.image_encoder = ImageEncoder_Trans(cfg, clip_model, self.visual_prompt_learner)
         else:  # RN50, RN101
             self.image_encoder = ImageEncoder_Conv(cfg, clip_model, self.visual_prompt_learner)
-            
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.gate = nn.Linear(512, self.num_prompt, bias=True)
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
         self.prompts = torch.tensor(0)
         self.token_prompts = torch.tensor(0)
+        D = 512
+        self.C = len(classnames)
         self.ctx_dim = clip_model.ln_final.weight.shape[0]
         self.conv = cfg.TRAINER.DUAL.ENABLE_CONV
-
-    def forward(self, image, domain=None, test_mode=False):
-        # 1. CLIP Image Feature 계산 (frozen encoder)
-        B = image.size(0)
-        dtype = self.dtype
-        # 2. 도메인별 Visual Prompt 텐서와 Image Feature Adapter 적용
-        logit_scale = self.logit_scale.exp()
-        adapted_image_features = torch.zeros(
-            B, 
-            self.ctx_dim, # <- 이 부분이 수정됨
-            dtype=dtype, 
-            device=image.device
+        self.register_buffer(
+            "ema_mu", 
+            torch.zeros(self.num_prompt, self.C, D, dtype=self.dtype)
         )
-        domain_logits = torch.zeros(B, self.tokenized_prompts.size(0), device=image.device, dtype=dtype)
-            
-        # 2-1. 불변 텍스트 프롬프트 특징 계산
-        inv_text_prompts = self.invariant_text_prompt_learner()
-        inv_text_feat = self.text_encoder(inv_text_prompts, self.tokenized_prompts)
-        inv_text_feat = inv_text_feat / inv_text_feat.norm(dim=-1, keepdim=True)
+        self.register_buffer(
+            "ema_var_mean", 
+            torch.ones(self.num_prompt, self.C, D, dtype=self.dtype) * 1e-2
+        )
+        self.register_buffer(
+            "ema_var_disp", 
+            torch.zeros(self.num_prompt, self.C, D, dtype=self.dtype)
+        )
+        self.ema_momentum = float(getattr(cfg.TRAINER.DUAL, "EMA_MOMENTUM", 0.99))
+        self.use_ema_teacher = True
+
+    def forward(self, image, label=None):
+        if self.conv:
+            _, deep_ctx, vctx, deep_vctx, image = self.visual_prompt_learner(image)
+        else:
+            _, deep_ctx, vctx, deep_vctx = self.visual_prompt_learner()
         
-        domain_text_feats = []
-        for p_learner in self.domain_text_prompt_learners:
-            tfeat = self.text_encoder(p_learner(), self.tokenized_prompts)
-            # 👇 여기! L2 normalize만 해주고 모양은 [num_classes, 512] 그대로 둔다
+        # --- 2. K개의 텍스트 특징 및 로짓 계산 ---
+        text_feats_per_prompt, logits_per_prompt = [], []
+        # if prompt:
+        #         image_features = self.image_encoder(image.type(self.dtype), None, None) 
+        # else:   
+        image_features = self.image_encoder(image.type(self.dtype), vctx, deep_vctx)    
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        logit_scale = self.logit_scale.exp()
+
+        # self.prompt_learner는 K개의 PromptLearner를 포함하는 nn.ModuleList
+        for pl in self.prompt_learner:
+            prompts = pl()
+            tfeat = self.text_encoder(prompts, self.tokenized_prompts)
             tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
-            domain_text_feats.append(tfeat)
+            text_feats_per_prompt.append(tfeat)
+            
+            # 로짓 계산: logit_k = logit_scale * img_feat @ tfeat.t()
+            logits_k = logit_scale * image_features @ tfeat.t()  # [B, C]
+            logits_per_prompt.append(logits_k)
+        if label is None:
+            gate_logits = self.gate(image_features.float()) / max(1.0, 1e-6)
+            w_student32 = F.softmax(gate_logits, dim=1)
+            w_student = w_student32.to(self.dtype)
 
+            weighted_logits = (w_student.unsqueeze(-1)
+                            * torch.stack(logits_per_prompt, dim=1)).sum(dim=1)
+            return weighted_logits
 
-        if test_mode:
-            image_features = self.image_encoder(image.type(self.dtype), None, None) # 기본 인코딩
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-            logit_scale = self.logit_scale.exp()
-            return logit_scale * image_features @ inv_text_feat.t()
-        
-        # 훈련 모드: Domain-Specific Adaptation 적용
-        for d_idx in range(self.num_domains):
-            mask = (domain == d_idx+1)
-            if mask.any():
-                img_d = image[mask].type(self.dtype)
-                
-                vpl_d = self.domain_visual_prompt_learners[d_idx]
-                
-                if self.conv:
-                    _, deep_ctx, vctx, deep_vctx, img_d = vpl_d(img_d)
-                    raw_feat_d = self.image_encoder(img_d, None, None)
+            # --------------------------
+            # 4) 라벨 있음 → Teacher (EMA NLEEP)
+            # --------------------------
+
+        label_idx = label.to(self.device).long().view(-1)
+        C = self.C
+        K = self.num_prompt
+        B, D = image_features.shape
+
+        mu_stack = torch.stack(text_feats_per_prompt, dim=0)
+
+        R = int(getattr(self, "bootstrap_reps", 8))
+        boot_ratio = float(getattr(self, "bootstrap_ratio", 0.7))
+        var_eps = float(getattr(self, "var_eps", 1e-6))
+
+        class_masks = {c: (label_idx == c) for c in range(C)}
+
+        batch_mu = torch.zeros(K, C, D, device=self.device)
+        batch_var_mean = torch.ones(K, C, D, device=self.device) * 1e-2
+        batch_var_disp = torch.zeros(K, C, D, device=self.device)
+
+        # ---- batch estimation (bootstrap) ----
+        for c in range(C):
+            mask_c = class_masks[c]
+            if mask_c.sum() == 0:
+                continue
+
+            feats_c = image_features[mask_c].detach()
+            Nc = feats_c.size(0)
+            n_boot = max(1, int(round(Nc * boot_ratio)))
+
+            for k in range(K):
+                mu_text = mu_stack[k, c]
+
+                if Nc < 2:
+                    batch_mu[k, c] = mu_text
+                    batch_var_mean[k, c] = torch.full_like(mu_text, 1e-2)
+                    batch_var_disp[k, c] = torch.zeros_like(mu_text)
                 else:
-                    _, deep_ctx, vctx, deep_vctx = vpl_d()
-                    raw_feat_d = self.image_encoder(img_d, vctx, deep_vctx) 
-                raw_feat_d = raw_feat_d.to(dtype)
+                    idx = torch.randint(0, Nc, (R, n_boot), device=self.device)
+                    feats_boot = feats_c[idx]
+                    var_r = ((feats_boot - mu_text) ** 2).mean(dim=1) + var_eps
 
-                # ⚠️ adapter는 보통 fp32로 만들어졌으니까, 여기서 맞춰줌
-                adapted_feat_d = self.image_adapters[d_idx](raw_feat_d.float()).to(dtype) + raw_feat_d
-                adapted_image_features[mask] = adapted_feat_d
+                    batch_mu[k, c] = mu_text
+                    batch_var_mean[k, c] = var_r.mean(dim=0)
+                    batch_var_disp[k, c] = var_r.var(dim=0, unbiased=False)
 
-                text_feat_d = domain_text_feats[d_idx]  # [C, D]
-                logits_d = logit_scale * adapted_feat_d @ text_feat_d.t()
-                domain_logits[mask] = logits_d
-        adapted_image_features = adapted_image_features / adapted_image_features.norm(dim=-1, keepdim=True)
-        inv_logits = logit_scale * adapted_image_features @ inv_text_feat.t()
+        # ---- EMA update ----
+        if self.use_ema_teacher:
+            m = self.ema_momentum
+            self.ema_mu       = m * self.ema_mu       + (1-m) * batch_mu
+            self.ema_var_mean = m * self.ema_var_mean + (1-m) * batch_var_mean
+            self.ema_var_disp = m * self.ema_var_disp + (1-m) * batch_var_disp
+        else:
+            self.ema_mu = batch_mu
+            self.ema_var_mean = batch_var_mean
+            self.ema_var_disp = batch_var_disp
 
-        return inv_logits, domain_logits, inv_text_feat, domain_text_feats
+        # --------------------------------
+        # Teacher routing (Gaussian likelihood)
+        # --------------------------------
+        nleep_scores = torch.full((B, K), -1e9,
+                                device=self.device, dtype=torch.float32)
+
+        for k in range(K):
+            for c in range(C):
+                mask_c = class_masks[c]
+                if mask_c.sum() == 0:
+                    continue
+
+                mu       = self.ema_mu[k, c].float()
+                var_mean = self.ema_var_mean[k, c].float()
+                var_disp = self.ema_var_disp[k, c].float()
+
+                adjusted_var = var_mean + 0.2 * var_disp
+                adjusted_var = torch.clamp(adjusted_var, min=1e-6)
+                x = image_features[mask_c].float()
+                diff = x - mu
+
+                log_prob = -0.5 * (
+                    (diff * diff) / adjusted_var + adjusted_var.log()).sum(dim=1)
+
+                nleep_scores[mask_c, k] = log_prob
+
+        if not torch.isfinite(nleep_scores).any(dim=1).all():
+            nleep_scores[~torch.isfinite(nleep_scores).any(dim=1)] = 0.0
+
+        weights_teacher32 = F.softmax(nleep_scores, dim=1)
+
+        # --------------------------------
+        # Student gate (KD)
+        # --------------------------------
+        gate_logits = self.gate(image_features.float()) / max(1.0, 1e-6)
+        weights_student32 = F.softmax(gate_logits, dim=1)
+        weights_student = weights_student32.to(self.dtype)
+
+        weighted_logits = (
+            weights_student.unsqueeze(-1)
+            * torch.stack(logits_per_prompt, dim=1)
+        ).sum(dim=1)
+
+        # KD loss
+        self.loss_gate_kd = F.kl_div(
+            F.log_softmax(gate_logits, dim=1),
+            weights_teacher32.detach(),
+            reduction="batchmean"
+        )
+
+        # Prompt alignment loss
+        per_prompt_loss = []
+        for logits in logits_per_prompt:
+            loss_k = F.cross_entropy(logits, label_idx, reduction="none")
+            per_prompt_loss.append(loss_k)
+
+        per_prompt_loss = torch.stack(per_prompt_loss, dim=1)
+
+        self.loss_prompt_align = (
+            weights_teacher32.detach() * per_prompt_loss
+        ).sum(dim=1).mean()
+
+        return weighted_logits
+
 
     # def forward(self, image, prompt=False):
     #     if self.conv:
@@ -329,7 +430,7 @@ class CustomCLIP(Base_CustomCLIP):
     #     logit_scale = self.logit_scale.exp()
     #     logits = logit_scale * image_features @ text_features.t()
 
-        # return logits
+    #     return logits
     
 
 @TRAINER_REGISTRY.register()
@@ -365,67 +466,49 @@ class Dual(BaseDG):
 
         print("Turning off gradients in both the image and the text encoder...")
         
-        for p in self.model.parameters():
-            p.requires_grad_(False)
+        train_keywords = [
+            "prompt_learner",
+            "visual_prompt_learner",
+            "gate",
+        ]
 
-        optim_params = []
-        
-            # 1. 도메인 특화 텍스트 프롬프트 (N개) - 파라미터 수집만
-        for p_learner in self.model.domain_text_prompt_learners:
-            for p in p_learner.parameters(): 
-                p.requires_grad_(True)
-            optim_params += list(p_learner.parameters())
-            
-        # 2. 도메인 불변 텍스트 프롬프트 (1개) - 파라미터 수집만
-        for p in self.model.invariant_text_prompt_learner.parameters(): 
-            p.requires_grad_(True)
-        optim_params += list(self.model.invariant_text_prompt_learner.parameters())
+        for name, param in self.model.named_parameters():
+            if any(k in name for k in train_keywords):
+                param.requires_grad_(True)
+            else:
+                param.requires_grad_(False)
 
-        # 3. 도메인 특화 시각 프롬프트 (N개) - 파라미터 수집만
-        for vpl in self.model.domain_visual_prompt_learners:
-            for p in vpl.parameters(): 
-                p.requires_grad_(True)
-            optim_params += list(vpl.parameters())
-            
-        # 4. 도메인별 이미지 어댑터 (N개) - 파라미터 수집만
-        for adapter in self.model.image_adapters:
-            for p in adapter.parameters(): 
-                p.requires_grad_(True)
-            optim_params += list(adapter.parameters())
 
-        # --- 🌟 해결책 적용: 옵티마이저 및 스케줄러를 먼저 빌드합니다. ---
+        trainable_param_groups = []
+
+        # text prompt learners
+        trainable_param_groups.append(self.model.prompt_learner.parameters())
+        # visual prompt learner
+        trainable_param_groups.append(self.model.visual_prompt_learner.parameters())
+        # gate
+        trainable_param_groups.append(self.model.gate.parameters())
+        optim_params = itertools.chain(*trainable_param_groups)        
         self.optim = build_optimizer(optim_params, cfg.OPTIM)
         self.sched = build_lr_scheduler(self.optim, cfg.OPTIM)
+        self.register_model("model", self.model, self.optim, self.sched)
         
-        # 5. 이제 등록 (Register)을 수행합니다.
-        # 등록은 optim_params 리스트 순서와 관계 없이, 원하는 모듈 이름으로 수행하면 됩니다.
-
-        # 5-1. 텍스트 프롬프트 등록
-        for i, p_learner in enumerate(self.model.domain_text_prompt_learners):
-            self.register_model(f"dom_text_prompt_{i}", p_learner, self.optim, self.sched)
-        self.register_model("inv_text_prompt", self.model.invariant_text_prompt_learner, self.optim, self.sched)
-
-        # 5-2. 시각 프롬프트 등록
-        for i, vpl in enumerate(self.model.domain_visual_prompt_learners):
-            self.register_model(f"dom_visual_prompt_{i}", vpl, self.optim, self.sched)
-            
-        # 5-3. 어댑터 등록
-        for i, adapter in enumerate(self.model.image_adapters):
-            self.register_model(f"image_adapter_{i}", adapter, self.optim, self.sched)
-        # Double check
         enabled = set()
         for name, param in self.model.named_parameters():
             if param.requires_grad:
                 enabled.add(name)
-        print(f"Parameters to be updated: {sorted(enabled)}")
-        total_trainable_params = sum(p.numel() for p in optim_params)
-        print(f"✅ Total trainable parameters: {total_trainable_params:,}")
+        print("=== Trainable Parameters by Module ===")
+        total = 0
+        for name, p in self.model.named_parameters():
+            if p.requires_grad:
+                print(f"{name:50s} {p.numel():,d}")
+                total += p.numel()
+        print(f"Total trainable params: {total:,d}")
         self.model.to(self.device)
         
         self.scaler = GradScaler() if cfg.TRAINER.DUAL.PREC == "amp" else None
 
     def forward_backward(self, batch):
-        images, labels,domain = self.parse_batch_train(batch)
+        images, labels = self.parse_batch_train(batch)
         prec = self.cfg.TRAINER.DUAL.PREC
         
         if prec == "amp":
@@ -437,34 +520,20 @@ class Dual(BaseDG):
             self.scaler.step(self.optim)
             self.scaler.update()
         else:
-            inv_logits, dom_logits, inv_tfeat, dom_tfeats = self.model(images, domain)
-
-            # 2. Classification Loss
-            ce_inv = F.cross_entropy(inv_logits, labels)
-            ce_dom = F.cross_entropy(dom_logits, labels)
-
-            # 3. KL Regularization: 불변이 각 도메인과 비슷해지도록
-            kl = 0
-            for tfeat in dom_tfeats:
-                # KL-Div는 Logit에 Softmax를 적용한 분포에 대해 계산하는 것이 일반적
-                # 여기서는 텍스트 특징에 Softmax를 적용한 분포를 사용
-                p = F.log_softmax(inv_tfeat, dim=-1)
-                q = F.softmax(tfeat, dim=-1)
-                kl = kl + F.kl_div(p, q, reduction="batchmean")
-                
-            kl = kl / len(dom_tfeats)
-            
-            # 4. Total Loss
-            loss = ce_inv + ce_dom + 0.1 * kl
-
+            output = self.model(images, labels)
+            ce_loss = F.cross_entropy(output, labels)
+            teacher_loss = self.model.loss_prompt_align
+            kd = self.model.loss_gate_kd
+            loss = ce_loss+teacher_loss+kd
+          
             self.model_backward_and_update(loss)
                 
         loss_summary = {
             "loss": loss.item(),
-            "loss_inv": ce_inv.item(),
-            "loss_dom": ce_dom.item(),
-            "loss_kl": kl.item(),
-            "acc": compute_accuracy(inv_logits, labels)[0].item(), # 불변 로짓 기준 정확도 보고
+            'kd':kd.item(),
+            'teacher':teacher_loss.item(),
+            'ce':ce_loss.item(),
+            "acc": compute_accuracy(output, labels)[0].item(), # 불변 로짓 기준 정확도 보고
         }
             # output = self.model(images)
             # loss = F.cross_entropy(output, labels)
