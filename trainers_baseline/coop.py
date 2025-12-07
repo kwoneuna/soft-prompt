@@ -4,7 +4,8 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-
+import matplotlib.pyplot as plt
+from scipy.stats import pointbiserialr
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -193,7 +194,77 @@ class CoOp(TrainerX):
 
     def check_cfg(self, cfg):
         assert cfg.TRAINER.COOP.PREC in ["fp16", "fp32", "amp"]
+    def run_confidence_analysis(self):
+        """
+        [Baseline Analysis] Checks correlation between Softmax Confidence and Accuracy.
+        This serves to show if the standard model is calibrated or overconfident.
+        """
+        print("Running Baseline Confidence vs Accuracy Analysis...")
+        self.set_model_mode("eval")
+        self.model.eval()
+        
+        # We will analyze both Source (Val) and Target (Test) if available
+        loaders = {}
+        if self.val_loader: loaders["Source (Val)"] = self.val_loader
+        if self.test_loader: loaders["Target (Test)"] = self.test_loader
+        
+        fig, axes = plt.subplots(1, len(loaders), figsize=(6 * len(loaders), 5))
+        if len(loaders) == 1: axes = [axes] # Handle single plot case
+        
+        for ax, (domain_name, loader) in zip(axes, loaders.items()):
+            confidences = []
+            is_correct = []
+            
+            with torch.no_grad():
+                for batch in tqdm(loader, desc=f"Analyzing {domain_name}"):
+                    input, label = self.parse_batch_test(batch)
+                    output = self.model(input) # Logits
+                    
+                    # 1. Calculate Softmax Confidence
+                    probs = F.softmax(output, dim=1)
+                    conf, pred = probs.max(dim=1)
+                    
+                    # 2. Check Correctness
+                    correct = (pred == label).cpu().numpy()
+                    
+                    confidences.extend(conf.cpu().numpy())
+                    is_correct.extend(correct.astype(int))
+            
+            # --- Statistics ---
+            confidences = np.array(confidences)
+            is_correct = np.array(is_correct)
+            
+            # Point-Biserial Correlation (Scalar vs Binary)
+            r, p = pointbiserialr(is_correct, confidences)
+            
+            # Binning for Visualization (Reliability Diagram)
+            bins = 10
+            bin_boundaries = np.linspace(0, 1, bins + 1)
+            bin_confs = []
+            bin_accs = []
+            
+            for i in range(bins):
+                mask = (confidences >= bin_boundaries[i]) & (confidences < bin_boundaries[i+1])
+                if mask.sum() > 0:
+                    bin_confs.append(confidences[mask].mean())
+                    bin_accs.append(is_correct[mask].mean())
+            
+            # --- Plotting ---
+            ax.plot([0, 1], [0, 1], "k--", label="Ideal")
+            ax.plot(bin_confs, bin_accs, "s-", label=f"Baseline (r={r:.3f})")
+            ax.set_xlabel("Confidence")
+            ax.set_ylabel("Accuracy")
+            ax.set_title(f"{domain_name} Calibration")
+            ax.legend(loc="lower right")
+            ax.grid(True, alpha=0.3)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
 
+        plt.tight_layout()
+        save_path = os.path.join(self.output_dir, "baseline_confidence_analysis.png")
+        plt.savefig(save_path)
+        print(f"Analysis saved to {save_path}")
+        plt.close()
     def build_model(self):
         cfg = self.cfg
         classnames = self.dm.dataset.classnames
@@ -285,6 +356,11 @@ class CoOp(TrainerX):
         elapsed = round(time.time() - self.time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
         print(f"Elapsed: {elapsed}")
+        # [Added] Run the Confidence Analysis
+        try:
+            self.run_confidence_analysis()
+        except Exception as e:
+            print(f"Skipping analysis due to error: {e}")
 
         # Close writer
         self.close_writer()

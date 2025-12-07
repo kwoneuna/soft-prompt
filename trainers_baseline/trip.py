@@ -5,12 +5,12 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 from itertools import chain
-
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torch.cuda.amp import GradScaler, autocast
-
+from scipy.stats import pointbiserialr
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from torch.utils.tensorboard import SummaryWriter
@@ -366,14 +366,15 @@ class CustomCLIP(nn.Module):
         # ------------------------------------------------------
         if self.use_ema_teacher:
             m = self.ema_momentum
-            self.ema_mu       = m * self.ema_mu       + (1 - m) * batch_mu
-            self.ema_var_mean = m * self.ema_var_mean + (1 - m) * batch_var_mean
-            self.ema_var_disp = m * self.ema_var_disp + (1 - m) * batch_var_disp
+            # 수정: batch_mu 등을 더할 때 .detach()를 사용해야 함
+            self.ema_mu        = m * self.ema_mu        + (1 - m) * batch_mu.detach()
+            self.ema_var_mean = m * self.ema_var_mean + (1 - m) * batch_var_mean.detach()
+            self.ema_var_disp = m * self.ema_var_disp + (1 - m) * batch_var_disp.detach()
         else:
-            self.ema_mu       = batch_mu
-            self.ema_var_mean = batch_var_mean
-            self.ema_var_disp = batch_var_disp
-
+            # 수정: 여기도 detach 필요
+            self.ema_mu        = batch_mu.detach()
+            self.ema_var_mean = batch_var_mean.detach()
+            self.ema_var_disp = batch_var_disp.detach()
         # ------------------------------------------------------
         # (c) Teacher routing (EMA NLEEP)
         # ------------------------------------------------------
@@ -441,32 +442,77 @@ class CustomCLIP(nn.Module):
 
         # 2. 모든 프롬프트별 KD 손실의 평균을 최종 kd_zs 손실로 사용
         kd_zs = torch.stack(kd_zs_per_prompt).mean()
+        
+        ##추가한거
+        ce_per_prompt = []
+        for k in range(self.K):
+            # 각 prompt k의 CE: [B]
+            ce_k = F.cross_entropy(
+                logits_per_prompt[k].to(torch.float32),  # [B, C]
+                label_idx,                               # [B]
+                reduction="none"
+            )
+            ce_per_prompt.append(ce_k)
+        # [B, K]
+        ce_per_prompt = torch.stack(ce_per_prompt, dim=1)
 
+        # NLEEP teacher weight로 가중합 → teacher가 자기 "책임분" 만큼만 업데이트
+        # weights_teacher32: [B, K]
+        loss_teacher = (weights_teacher32 * ce_per_prompt).sum(dim=1).mean()  # scalar
+        self.loss_teacher = loss_teacher
         self.loss_zs_kd = kd_zs
         correct_class_logits = torch.gather(
             logits_stack, 
             dim=2, 
-            index=label_idx.view(-1, 1, 1).expand(-1, self.K, -1)
-        ).squeeze(2) # [B, K]
-        
-        # 2. Oracle Target 분포 생성 (정답 점수가 높을수록 높은 확률)
-        # tau_oracle: 이 값이 작을수록 가장 잘 맞춘 1등 프롬프트에 몰빵함 (Sharpness 조절)
-        # tau_oracle = 0.1 # 하이퍼파라미터 (상황에 맞춰 조절)
-        tau_oracle = 1.0 # 하이퍼파라미터 (상황에 맞춰 조절)
-        oracle_weights = F.softmax(correct_class_logits / tau_oracle, dim=1).detach() # [B, K]
+            index=label_idx.view(-1, 1, 1).expand(-1, self.K, 1)
+        ).squeeze(2)  # [B, K]
 
-        # 3. Student Gate가 Oracle 분포를 따르도록 Loss 계산
-        # gate_logits: [B, K] (Student의 게이트 출력)
+        # 2) 정답 기반 oracle 분포 (여러 prompt 동시에 클 수 있음)
+        tau_oracle = max(getattr(self, "tau_oracle", 1.0), 1e-6)
+        p_oracle = F.softmax(correct_class_logits / tau_oracle, dim=1)  # [B, K]
+
+        # 3) NLEEP teacher 분포와 oracle 분포를 섞어서 최종 target 만들기
+        alpha_mix = getattr(self, "alpha_oracle_mix", 0.5)  # 0~1 사이 값
+        # target = normalize( (1-alpha)*teacher + alpha*oracle )
+        mix = (1.0 - alpha_mix) * weights_teacher32 + alpha_mix * p_oracle
+        target_oracle = mix / (mix.sum(dim=1, keepdim=True) + 1e-8)  # [B, K]
+
+        # 4) gate가 이 soft 분포를 따라가도록 KL loss
         loss_oracle = F.kl_div(
-            F.log_softmax(gate_logits, dim=1), # Student Log P
-            oracle_weights,                    # Target Q (정답 기반)
+            F.log_softmax(gate_logits, dim=1),   # student 분포
+            target_oracle.detach(),              # 정답+거리 섞인 soft 타겟
             reduction="batchmean"
         )
         self.loss_oracle = loss_oracle
+        
+        # correct_class_logits = torch.gather(
+        #     logits_stack, 
+        #     dim=2, 
+        #     index=label_idx.view(-1, 1, 1).expand(-1, self.K, -1)
+        # ).squeeze(2) # [B, K]
+        
+        # best_prompt_idx = correct_class_logits.argmax(dim=1)  # [B], 0 ~ K-1
 
-       
+        # # 3. gate가 이 best_prompt_idx를 맞추도록 CrossEntropy 사용
+        # loss_oracle = F.cross_entropy(gate_logits, best_prompt_idx)
+        # self.loss_oracle = loss_oracle
+        # 2. Oracle Target 분포 생성 (정답 점수가 높을수록 높은 확률)
+        # tau_oracle: 이 값이 작을수록 가장 잘 맞춘 1등 프롬프트에 몰빵함 (Sharpness 조절)
+        # tau_oracle = 0.1 # 하이퍼파라미터 (상황에 맞춰 조절)
+        # tau_oracle = 1.0 # 하이퍼파라미터 (상황에 맞춰 조절)
+        # oracle_weights = F.softmax(correct_class_logits / tau_oracle, dim=1).detach() # [B, K]
+
+        # # 3. Student Gate가 Oracle 분포를 따르도록 Loss 계산
+        # # gate_logits: [B, K] (Student의 게이트 출력)
+        # loss_oracle = F.kl_div(
+        #     F.log_softmax(gate_logits, dim=1), # Student Log P
+        #     oracle_weights,                    # Target Q (정답 기반)
+        #     reduction="batchmean"
+        # )
+        # self.loss_oracle = loss_oracle
+      
         return weighted_logits
-
+   
     # def forward(self, image, label=None):
     #     image = image.to(self.device, dtype=self.dtype)
     #     logit_scale = self.logit_scale.exp()
@@ -609,7 +655,100 @@ class TRIP(TrainerX):
 
     def check_cfg(self, cfg):
         assert cfg.TRAINER.TRIP.PREC in ["fp16", "fp32", "amp"]
-   
+    @torch.no_grad()
+    def analyze_confidence_vs_distribution(self, split="test", n_bins=10):
+        """
+        confidence vs accuracy, distribution score vs accuracy
+        를 한 번에 분석하고, correlation + reliability plot 을 저장하는 함수.
+
+        사용 예시:
+            trainer.analyze_confidence_vs_distribution(split="val")
+            trainer.analyze_confidence_vs_distribution(split="test")
+        """
+        self.set_model_mode("eval")
+        self.model.eval()
+
+        # 1) 어떤 데이터셋을 볼지 선택
+        if split == "val" and self.val_loader is not None:
+            data_loader = self.val_loader
+        else:
+            split = "test"
+            data_loader = self.test_loader
+
+        all_conf = []
+        all_dist_score = []
+        all_correct = []
+
+        print(f"[Analysis] Collecting scores on *{split}* set...")
+        for batch in tqdm(data_loader, desc=f"Analyze {split}"):
+            # TrainerX에 정의된 parse_batch_test 사용 (이미 test()에서 쓰고 있음)
+            inputs, labels = self.parse_batch_test(batch)
+
+            # CustomCLIP.forward_analysis 호출
+            logits, w_student, nleep_scores, conf_weighted, pred = \
+                self.model.forward_analysis(inputs)
+
+            # numpy로 변환
+            conf_np = conf_weighted.cpu().numpy()                         # [B]
+            # 분포 기반 score: 각 샘플마다 가장 높은 NLEEP score 하나만 사용
+            dist_np = nleep_scores.max(dim=1).values.cpu().numpy()        # [B]
+
+            correct_np = (pred.cpu().numpy() == labels.cpu().numpy()).astype(np.float32)
+
+            all_conf.append(conf_np)
+            all_dist_score.append(dist_np)
+            all_correct.append(correct_np)
+
+        conf = np.concatenate(all_conf)          # [N]
+        dist = np.concatenate(all_dist_score)    # [N]
+        correct = np.concatenate(all_correct)    # [N], 0/1
+
+        # 2) point-biserial correlation (이분형 정답 vs 연속 score)
+        r_conf, p_conf = pointbiserialr(correct, conf)
+        r_dist, p_dist = pointbiserialr(correct, dist)
+
+        print("=== Correlation with correctness (point-biserial) ===")
+        print(f"- Baseline confidence : r = {r_conf:.4f}, p = {p_conf:.2e}")
+        print(f"- Dist. NLEEP score   : r = {r_dist:.4f}, p = {p_dist:.2e}")
+        print("  (r이 클수록 'score ↑ → 정답일 확률 ↑' 관계가 더 강함)")
+
+        # 3) Reliability plot 그리기 (score bin 별 실제 accuracy)
+        save_dir = os.path.join(self.output_dir, "analysis")
+        os.makedirs(save_dir, exist_ok=True)
+
+        def reliability_plot(score, name):
+            # 분포 기반 score는 log값이라 그대로 쓰면 범위가 안 예쁠 수 있음 → 0~1로 정규화
+            s = score.copy()
+            s = (s - s.min()) / (s.max() - s.min() + 1e-8)
+
+            bins = np.linspace(0.0, 1.0, n_bins + 1)
+            mids, accs = [], []
+            for i in range(n_bins):
+                lo, hi = bins[i], bins[i + 1]
+                mask = (s >= lo) & (s < hi)
+                if mask.sum() == 0:
+                    continue
+                mids.append((lo + hi) / 2.0)
+                accs.append(correct[mask].mean())
+
+            plt.figure()
+            plt.plot(mids, accs, marker="o")
+            plt.plot([0, 1], [0, 1], linestyle="--")  # y=x 이상적 calibration 라인
+            plt.xlabel(f"{name} (normalized)")
+            plt.ylabel("Empirical accuracy")
+            plt.title(f"Reliability of {name}")
+            plt.grid(True)
+
+            save_path = os.path.join(save_dir, f"reliability_{name.replace(' ', '_')}.png")
+            plt.savefig(save_path, bbox_inches="tight")
+            plt.close()
+            print(f"  - Saved reliability plot for {name} at: {save_path}")
+
+        reliability_plot(conf, "confidence")
+        reliability_plot(dist, "dist_score")
+
+      
+
     def _ensure_writer(self, initialize=False):
         # 이미 writer가 초기화되었으면 바로 반환 (싱글톤 패턴)
         if hasattr(self, 'writer') and self.writer is not None and not initialize:
@@ -697,20 +836,21 @@ class TRIP(TrainerX):
             
             kd_loss = self.model.loss_gate_kd
             ce_loss = F.cross_entropy(output, label)
+            teacher_loss = self.model.loss_teacher
             #loss_flag
             total_loss = (
-                ce_loss + kd_loss  + 0.5*self.model.loss_zs_kd + 0.5*self.model.loss_oracle
-                
+                + teacher_loss + self.model.loss_oracle + 0.5*self.model.loss_zs_kd
             )
-                    
+            loss = total_loss # 최종 Loss를 summary에 사용
+
 
             self.model_backward_and_update(total_loss)
-            loss = total_loss # 최종 Loss를 summary에 사용
             
         loss_summary = {
             "loss": loss.item(),
             "ce_loss": ce_loss.item(),
-            "loss_zs":self.model.loss_zs_kd.item(),
+            'teacher_loss':teacher_loss.item(),
+            "loss_zs_kd":self.model.loss_zs_kd.item(),
             'loss_oracle':self.model.loss_oracle.item(),
             # 'loss_pre_gate_align':self.model.loss_pre_gate_align.item(),
             "acc": compute_accuracy(output, label)[0].item(), 
@@ -768,7 +908,7 @@ class TRIP(TrainerX):
         domain = domain.to(self.device)
 
         return input, label, domain
-    
+ 
     def after_train(self):
         print("Finish the whole training")
 
@@ -778,8 +918,7 @@ class TRIP(TrainerX):
         elapsed = round(time.time() - self.time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
         print(f"Elapsed: {elapsed}")
-
-        # Close writer
+      
         self.close_writer()
 
     @torch.no_grad()

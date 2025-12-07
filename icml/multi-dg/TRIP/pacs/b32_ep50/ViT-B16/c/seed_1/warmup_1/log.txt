@@ -1,0 +1,811 @@
+Loading trainer: TRIP
+Loading dataset: SPG_PACS
+Building transform_train
++ random resized crop (size=(224, 224), scale=(0.08, 1.0))
++ random flip
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+Building transform_test
++ resize the smaller edge to 224
++ 224x224 center crop
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+---------  -----------------------------------
+Dataset    SPG_PACS
+Source     ['art_painting', 'photo', 'sketch']
+Target     ['cartoon']
+# classes  7
+# train_x  5,349
+# val      2,297
+# test     2,344
+---------  -----------------------------------
+Loading CLIP (backbone: ViT-B/16)
+Building custom CLIP
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Turning off gradients in both the image and the text encoder
+=== Trainable Parameters by Module ===
+prompt_learner.0.ctx                               2,048
+prompt_learner.1.ctx                               2,048
+prompt_learner.2.ctx                               2,048
+gate.mlp.0.weight                                  65,536
+gate.mlp.0.bias                                    128
+gate.mlp.2.weight                                  384
+gate.mlp.2.bias                                    3
+Total trainable params: 72,195
+Loading evaluator: Classification
+No checkpoint found, train from scratch
+Initialize tensorboard (log_dir=icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/tensorboard)
+epoch [1/50] batch [20/167] time 0.163 (0.151) data 0.000 (0.025) loss 0.6002 (0.5518) ce_loss 0.5991 (0.5501) loss_zs_kd 0.0001 (0.0000) loss_oracle -0.0001 (-0.0002) acc 84.3750 (80.1562) kd_loss 0.0011 (0.0017) lr 1.0000e-05 eta 0:20:57
+epoch [1/50] batch [40/167] time 0.161 (0.129) data 0.000 (0.013) loss 0.7092 (0.5578) ce_loss 0.7080 (0.5565) loss_zs_kd 0.0008 (0.0002) loss_oracle -0.0001 (-0.0001) acc 75.0000 (80.2344) kd_loss 0.0009 (0.0013) lr 1.0000e-05 eta 0:17:52
+epoch [1/50] batch [60/167] time 0.087 (0.118) data 0.000 (0.009) loss 0.5892 (0.5342) ce_loss 0.5864 (0.5326) loss_zs_kd 0.0016 (0.0005) loss_oracle -0.0001 (-0.0001) acc 75.0000 (81.4583) kd_loss 0.0020 (0.0014) lr 1.0000e-05 eta 0:16:15
+epoch [1/50] batch [80/167] time 0.085 (0.109) data 0.000 (0.006) loss 0.6685 (0.5210) ce_loss 0.6650 (0.5192) loss_zs_kd 0.0024 (0.0009) loss_oracle -0.0001 (-0.0001) acc 71.8750 (81.8359) kd_loss 0.0023 (0.0015) lr 1.0000e-05 eta 0:15:00
+epoch [1/50] batch [100/167] time 0.097 (0.107) data 0.000 (0.005) loss 0.3066 (0.5086) ce_loss 0.3022 (0.5064) loss_zs_kd 0.0048 (0.0013) loss_oracle 0.0000 (-0.0001) acc 87.5000 (82.1875) kd_loss 0.0020 (0.0016) lr 1.0000e-05 eta 0:14:43
+epoch [1/50] batch [120/167] time 0.095 (0.107) data 0.000 (0.004) loss 0.5094 (0.5035) ce_loss 0.5044 (0.5009) loss_zs_kd 0.0050 (0.0019) loss_oracle -0.0001 (-0.0001) acc 81.2500 (82.3177) kd_loss 0.0026 (0.0017) lr 1.0000e-05 eta 0:14:44
+epoch [1/50] batch [140/167] time 0.097 (0.107) data 0.000 (0.004) loss 0.5724 (0.4956) ce_loss 0.5649 (0.4925) loss_zs_kd 0.0062 (0.0024) loss_oracle -0.0000 (-0.0001) acc 75.0000 (82.4554) kd_loss 0.0043 (0.0019) lr 1.0000e-05 eta 0:14:36
+epoch [1/50] batch [160/167] time 0.095 (0.106) data 0.000 (0.003) loss 0.3236 (0.4957) ce_loss 0.3184 (0.4921) loss_zs_kd 0.0058 (0.0031) loss_oracle -0.0001 (-0.0001) acc 90.6250 (82.4023) kd_loss 0.0024 (0.0021) lr 1.0000e-05 eta 0:14:28
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,168
+* accuracy: 94.4%
+* error: 5.6%
+* macro_f1: 95.0%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,327
+* accuracy: 99.3%
+* error: 0.7%
+* macro_f1: 99.3%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best-test.pth.tar
+******* Domain c best val acc:      94.4%, epoch: 1 *******
+******* Domain c best val test acc: 99.3%, epoch: 1 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+[TensorBoard] Initialized writer in: icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/ana
+epoch [2/50] batch [20/167] time 0.099 (0.116) data 0.000 (0.017) loss 0.8109 (0.5172) ce_loss 0.7837 (0.4866) loss_zs_kd 0.0388 (0.0523) loss_oracle 0.0051 (0.0005) acc 71.8750 (82.9688) kd_loss 0.0053 (0.0042) lr 2.0000e-03 eta 0:15:50
+epoch [2/50] batch [40/167] time 0.098 (0.109) data 0.000 (0.008) loss 0.3219 (0.4676) ce_loss 0.2583 (0.4342) loss_zs_kd 0.1028 (0.0545) loss_oracle 0.0034 (0.0016) acc 93.7500 (84.9219) kd_loss 0.0106 (0.0053) lr 2.0000e-03 eta 0:14:51
+epoch [2/50] batch [60/167] time 0.096 (0.105) data 0.000 (0.006) loss 0.3529 (0.4770) ce_loss 0.2842 (0.4357) loss_zs_kd 0.0413 (0.0550) loss_oracle 0.0020 (0.0017) acc 90.6250 (84.6875) kd_loss 0.0471 (0.0130) lr 2.0000e-03 eta 0:14:12
+epoch [2/50] batch [80/167] time 0.108 (0.104) data 0.000 (0.004) loss 0.4399 (0.4934) ce_loss 0.3435 (0.4415) loss_zs_kd 0.1038 (0.0577) loss_oracle 0.0044 (0.0020) acc 87.5000 (84.3750) kd_loss 0.0424 (0.0221) lr 2.0000e-03 eta 0:14:03
+epoch [2/50] batch [100/167] time 0.098 (0.104) data 0.000 (0.004) loss 0.3156 (0.4812) ce_loss 0.2487 (0.4257) loss_zs_kd 0.0403 (0.0550) loss_oracle 0.0024 (0.0024) acc 93.7500 (84.6562) kd_loss 0.0456 (0.0268) lr 2.0000e-03 eta 0:14:01
+epoch [2/50] batch [120/167] time 0.098 (0.103) data 0.000 (0.003) loss 0.4454 (0.4806) ce_loss 0.3750 (0.4214) loss_zs_kd 0.0286 (0.0533) loss_oracle 0.0028 (0.0024) acc 84.3750 (84.6354) kd_loss 0.0547 (0.0313) lr 2.0000e-03 eta 0:13:51
+epoch [2/50] batch [140/167] time 0.095 (0.103) data 0.000 (0.003) loss 0.1817 (0.4785) ce_loss 0.1272 (0.4148) loss_zs_kd 0.0227 (0.0566) loss_oracle 0.0030 (0.0025) acc 96.8750 (84.9330) kd_loss 0.0416 (0.0342) lr 2.0000e-03 eta 0:13:51
+epoch [2/50] batch [160/167] time 0.094 (0.103) data 0.000 (0.002) loss 0.4029 (0.4795) ce_loss 0.3191 (0.4157) loss_zs_kd 0.0711 (0.0556) loss_oracle 0.0023 (0.0025) acc 87.5000 (84.8242) kd_loss 0.0471 (0.0348) lr 2.0000e-03 eta 0:13:45
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,201
+* accuracy: 95.8%
+* error: 4.2%
+* macro_f1: 96.3%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,322
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.1%
+******* Domain c best val acc:      95.8%, epoch: 2 *******
+******* Domain c best val test acc: 99.1%, epoch: 2 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [3/50] batch [20/167] time 0.097 (0.117) data 0.000 (0.018) loss 0.3521 (0.4641) ce_loss 0.2286 (0.3651) loss_zs_kd 0.0406 (0.0695) loss_oracle 0.0426 (0.0226) acc 90.6250 (86.2500) kd_loss 0.0818 (0.0530) lr 1.9980e-03 eta 0:15:38
+epoch [3/50] batch [40/167] time 0.098 (0.109) data 0.000 (0.009) loss 0.6165 (0.5206) ce_loss 0.5020 (0.4082) loss_zs_kd 0.0411 (0.0651) loss_oracle 0.0072 (0.0175) acc 81.2500 (84.3750) kd_loss 0.0904 (0.0711) lr 1.9980e-03 eta 0:14:29
+epoch [3/50] batch [60/167] time 0.096 (0.106) data 0.000 (0.006) loss 0.5375 (0.5278) ce_loss 0.4246 (0.4112) loss_zs_kd 0.0445 (0.0650) loss_oracle 0.0057 (0.0136) acc 87.5000 (84.8438) kd_loss 0.0877 (0.0773) lr 1.9980e-03 eta 0:14:03
+epoch [3/50] batch [80/167] time 0.083 (0.102) data 0.000 (0.005) loss 0.4744 (0.5371) ce_loss 0.3186 (0.4158) loss_zs_kd 0.0884 (0.0633) loss_oracle 0.0053 (0.0115) acc 90.6250 (84.5703) kd_loss 0.1090 (0.0839) lr 1.9980e-03 eta 0:13:32
+epoch [3/50] batch [100/167] time 0.060 (0.099) data 0.000 (0.004) loss 0.3905 (0.5436) ce_loss 0.1876 (0.4110) loss_zs_kd 0.0562 (0.0623) loss_oracle 0.0120 (0.0107) acc 96.8750 (84.9375) kd_loss 0.1688 (0.0961) lr 1.9980e-03 eta 0:13:04
+epoch [3/50] batch [120/167] time 0.091 (0.096) data 0.000 (0.003) loss 0.7064 (0.5677) ce_loss 0.3174 (0.4059) loss_zs_kd 0.0268 (0.0613) loss_oracle 0.0062 (0.0111) acc 87.5000 (85.1042) kd_loss 0.3725 (0.1256) lr 1.9980e-03 eta 0:12:36
+epoch [3/50] batch [140/167] time 0.157 (0.096) data 0.000 (0.003) loss 0.4651 (0.5894) ce_loss 0.2393 (0.4092) loss_zs_kd 0.0392 (0.0615) loss_oracle 0.0287 (0.0113) acc 90.6250 (85.0223) kd_loss 0.1919 (0.1438) lr 1.9980e-03 eta 0:12:38
+epoch [3/50] batch [160/167] time 0.158 (0.097) data 0.000 (0.003) loss 1.2582 (0.6450) ce_loss 0.3506 (0.4094) loss_zs_kd 0.0351 (0.0595) loss_oracle 0.0364 (0.0134) acc 90.6250 (85.0391) kd_loss 0.8718 (0.1991) lr 1.9980e-03 eta 0:12:38
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,200
+* accuracy: 95.8%
+* error: 4.2%
+* macro_f1: 96.2%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,323
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.2%
+******* Domain c best val acc:      95.8%, epoch: 2 *******
+******* Domain c best val test acc: 99.1%, epoch: 2 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [4/50] batch [20/167] time 0.087 (0.103) data 0.000 (0.020) loss 1.2669 (1.4625) ce_loss 0.1533 (0.3906) loss_zs_kd 0.0700 (0.0679) loss_oracle 0.0355 (0.0353) acc 96.8750 (85.9375) kd_loss 1.0609 (1.0203) lr 1.9921e-03 eta 0:13:28
+epoch [4/50] batch [40/167] time 0.149 (0.110) data 0.000 (0.010) loss 1.6470 (1.4826) ce_loss 0.5703 (0.4056) loss_zs_kd 0.0774 (0.0658) loss_oracle 0.0341 (0.0341) acc 81.2500 (85.3125) kd_loss 1.0209 (1.0271) lr 1.9921e-03 eta 0:14:18
+epoch [4/50] batch [60/167] time 0.179 (0.107) data 0.000 (0.007) loss 1.5514 (1.4696) ce_loss 0.4446 (0.3873) loss_zs_kd 0.0711 (0.0680) loss_oracle 0.0980 (0.0467) acc 84.3750 (85.9896) kd_loss 1.0223 (1.0250) lr 1.9921e-03 eta 0:13:52
+epoch [4/50] batch [80/167] time 0.069 (0.107) data 0.000 (0.005) loss 1.4885 (1.4729) ce_loss 0.4219 (0.3978) loss_zs_kd 0.0879 (0.0670) loss_oracle 0.0499 (0.0480) acc 81.2500 (85.3125) kd_loss 0.9977 (1.0176) lr 1.9921e-03 eta 0:13:51
+epoch [4/50] batch [100/167] time 0.075 (0.104) data 0.000 (0.004) loss 1.4358 (1.4602) ce_loss 0.4055 (0.3961) loss_zs_kd 0.0849 (0.0678) loss_oracle 0.0327 (0.0455) acc 84.3750 (85.2812) kd_loss 0.9715 (1.0074) lr 1.9921e-03 eta 0:13:22
+epoch [4/50] batch [120/167] time 0.093 (0.101) data 0.000 (0.004) loss 1.3250 (1.4494) ce_loss 0.3796 (0.4007) loss_zs_kd 0.0543 (0.0652) loss_oracle 0.0276 (0.0431) acc 78.1250 (84.9479) kd_loss 0.9045 (0.9945) lr 1.9921e-03 eta 0:12:58
+epoch [4/50] batch [140/167] time 0.086 (0.098) data 0.000 (0.003) loss 1.2183 (1.4301) ce_loss 0.2546 (0.3968) loss_zs_kd 0.0773 (0.0647) loss_oracle 0.0276 (0.0410) acc 93.7500 (85.0000) kd_loss 0.9113 (0.9805) lr 1.9921e-03 eta 0:12:34
+epoch [4/50] batch [160/167] time 0.093 (0.097) data 0.000 (0.003) loss 1.3047 (1.4105) ce_loss 0.4260 (0.3969) loss_zs_kd 0.1176 (0.0651) loss_oracle 0.0285 (0.0401) acc 81.2500 (84.9805) kd_loss 0.8057 (0.9610) lr 1.9921e-03 eta 0:12:27
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,206
+* accuracy: 96.0%
+* error: 4.0%
+* macro_f1: 96.5%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,324
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.2%
+******* Domain c best val acc:      96.0%, epoch: 4 *******
+******* Domain c best val test acc: 99.1%, epoch: 4 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [5/50] batch [20/167] time 0.111 (0.122) data 0.000 (0.022) loss 1.3810 (1.2610) ce_loss 0.5107 (0.3916) loss_zs_kd 0.0642 (0.0571) loss_oracle 0.0714 (0.0597) acc 84.3750 (84.8438) kd_loss 0.8024 (0.8110) lr 1.9823e-03 eta 0:15:30
+epoch [5/50] batch [40/167] time 0.097 (0.109) data 0.000 (0.011) loss 1.1995 (1.1998) ce_loss 0.4622 (0.3702) loss_zs_kd 0.0796 (0.0615) loss_oracle 0.0576 (0.0756) acc 81.2500 (85.9375) kd_loss 0.6687 (0.7610) lr 1.9823e-03 eta 0:13:55
+epoch [5/50] batch [60/167] time 0.133 (0.107) data 0.001 (0.008) loss 1.2604 (1.1811) ce_loss 0.3679 (0.3712) loss_zs_kd 0.0957 (0.0637) loss_oracle 0.1587 (0.0787) acc 84.3750 (85.7292) kd_loss 0.7653 (0.7387) lr 1.9823e-03 eta 0:13:32
+epoch [5/50] batch [80/167] time 0.104 (0.107) data 0.000 (0.006) loss 1.2689 (1.1825) ce_loss 0.5469 (0.3776) loss_zs_kd 0.0698 (0.0660) loss_oracle 0.0384 (0.0779) acc 75.0000 (85.5078) kd_loss 0.6680 (0.7329) lr 1.9823e-03 eta 0:13:34
+epoch [5/50] batch [100/167] time 0.108 (0.106) data 0.000 (0.005) loss 1.1529 (1.1874) ce_loss 0.3750 (0.3921) loss_zs_kd 0.0930 (0.0660) loss_oracle 0.1346 (0.0800) acc 90.6250 (85.3438) kd_loss 0.6641 (0.7224) lr 1.9823e-03 eta 0:13:24
+epoch [5/50] batch [120/167] time 0.105 (0.105) data 0.000 (0.004) loss 1.0091 (1.1771) ce_loss 0.3201 (0.3901) loss_zs_kd 0.0729 (0.0688) loss_oracle 0.1044 (0.0914) acc 90.6250 (85.5729) kd_loss 0.6004 (0.7069) lr 1.9823e-03 eta 0:13:15
+epoch [5/50] batch [140/167] time 0.101 (0.105) data 0.000 (0.003) loss 1.1828 (1.1585) ce_loss 0.4778 (0.3887) loss_zs_kd 0.0595 (0.0681) loss_oracle 0.0721 (0.0898) acc 81.2500 (85.6473) kd_loss 0.6392 (0.6908) lr 1.9823e-03 eta 0:13:08
+epoch [5/50] batch [160/167] time 0.098 (0.104) data 0.000 (0.003) loss 0.9137 (1.1492) ce_loss 0.2443 (0.3855) loss_zs_kd 0.0517 (0.0679) loss_oracle 0.1262 (0.0906) acc 87.5000 (85.7227) kd_loss 0.5805 (0.6844) lr 1.9823e-03 eta 0:13:01
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,208
+* accuracy: 96.1%
+* error: 3.9%
+* macro_f1: 96.5%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,320
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.1%, epoch: 5 *******
+******* Domain c best val test acc: 99.0%, epoch: 5 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [6/50] batch [20/167] time 0.099 (0.118) data 0.000 (0.024) loss 1.3020 (1.1442) ce_loss 0.5220 (0.3768) loss_zs_kd 0.0554 (0.0619) loss_oracle 0.0551 (0.0802) acc 84.3750 (85.3125) kd_loss 0.7248 (0.6964) lr 1.9686e-03 eta 0:14:45
+epoch [6/50] batch [40/167] time 0.108 (0.110) data 0.000 (0.012) loss 1.2295 (1.1584) ce_loss 0.3586 (0.3624) loss_zs_kd 0.0638 (0.0655) loss_oracle 0.0579 (0.0772) acc 84.3750 (86.4062) kd_loss 0.8100 (0.7247) lr 1.9686e-03 eta 0:13:41
+epoch [6/50] batch [60/167] time 0.093 (0.107) data 0.000 (0.008) loss 1.2846 (1.1849) ce_loss 0.4319 (0.3735) loss_zs_kd 0.0784 (0.0716) loss_oracle 0.0374 (0.0711) acc 81.2500 (85.5729) kd_loss 0.7948 (0.7401) lr 1.9686e-03 eta 0:13:16
+epoch [6/50] batch [80/167] time 0.084 (0.105) data 0.000 (0.006) loss 0.9290 (1.1582) ce_loss 0.2712 (0.3596) loss_zs_kd 0.0325 (0.0680) loss_oracle 0.0959 (0.0677) acc 90.6250 (86.1328) kd_loss 0.5936 (0.7307) lr 1.9686e-03 eta 0:12:59
+epoch [6/50] batch [100/167] time 0.095 (0.104) data 0.000 (0.005) loss 1.0123 (1.1274) ce_loss 0.3691 (0.3637) loss_zs_kd 0.0538 (0.0685) loss_oracle 0.1046 (0.0743) acc 84.3750 (86.0312) kd_loss 0.5639 (0.6924) lr 1.9686e-03 eta 0:12:52
+epoch [6/50] batch [120/167] time 0.094 (0.103) data 0.000 (0.004) loss 1.2367 (1.1188) ce_loss 0.6040 (0.3734) loss_zs_kd 0.0778 (0.0695) loss_oracle 0.0923 (0.0747) acc 75.0000 (85.4167) kd_loss 0.5477 (0.6733) lr 1.9686e-03 eta 0:12:45
+epoch [6/50] batch [140/167] time 0.078 (0.101) data 0.000 (0.004) loss 1.1987 (1.1252) ce_loss 0.3696 (0.3734) loss_zs_kd 0.0632 (0.0699) loss_oracle 0.1102 (0.0779) acc 87.5000 (85.5134) kd_loss 0.7423 (0.6779) lr 1.9686e-03 eta 0:12:22
+epoch [6/50] batch [160/167] time 0.072 (0.098) data 0.000 (0.003) loss 1.0882 (1.1403) ce_loss 0.1981 (0.3717) loss_zs_kd 0.0302 (0.0691) loss_oracle 0.0611 (0.0781) acc 96.8750 (85.8398) kd_loss 0.8444 (0.6950) lr 1.9686e-03 eta 0:11:58
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,205
+* accuracy: 96.0%
+* error: 4.0%
+* macro_f1: 96.4%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,322
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.1%, epoch: 5 *******
+******* Domain c best val test acc: 99.0%, epoch: 5 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [7/50] batch [20/167] time 0.075 (0.131) data 0.000 (0.032) loss 1.2326 (1.2842) ce_loss 0.2917 (0.3695) loss_zs_kd 0.0687 (0.0689) loss_oracle 0.0839 (0.0744) acc 90.6250 (85.6250) kd_loss 0.8645 (0.8430) lr 1.9511e-03 eta 0:15:56
+epoch [7/50] batch [40/167] time 0.086 (0.105) data 0.000 (0.016) loss 1.0564 (1.2566) ce_loss 0.2079 (0.3516) loss_zs_kd 0.0361 (0.0705) loss_oracle 0.0899 (0.0798) acc 93.7500 (87.4219) kd_loss 0.7856 (0.8299) lr 1.9511e-03 eta 0:12:46
+epoch [7/50] batch [60/167] time 0.070 (0.096) data 0.000 (0.011) loss 1.3598 (1.2582) ce_loss 0.4707 (0.3572) loss_zs_kd 0.0795 (0.0688) loss_oracle 0.1288 (0.0827) acc 81.2500 (87.3438) kd_loss 0.7849 (0.8253) lr 1.9511e-03 eta 0:11:38
+epoch [7/50] batch [80/167] time 0.068 (0.095) data 0.001 (0.008) loss 1.2247 (1.2684) ce_loss 0.2844 (0.3660) loss_zs_kd 0.0550 (0.0707) loss_oracle 0.0926 (0.0899) acc 87.5000 (87.1094) kd_loss 0.8665 (0.8221) lr 1.9511e-03 eta 0:11:31
+epoch [7/50] batch [100/167] time 0.062 (0.096) data 0.000 (0.007) loss 1.6068 (1.2749) ce_loss 0.6260 (0.3658) loss_zs_kd 0.0814 (0.0697) loss_oracle 0.0737 (0.0876) acc 75.0000 (86.7500) kd_loss 0.9033 (0.8305) lr 1.9511e-03 eta 0:11:33
+epoch [7/50] batch [120/167] time 0.087 (0.096) data 0.000 (0.006) loss 1.5069 (1.2931) ce_loss 0.5220 (0.3681) loss_zs_kd 0.1150 (0.0714) loss_oracle 0.0815 (0.0862) acc 87.5000 (86.5885) kd_loss 0.8866 (0.8462) lr 1.9511e-03 eta 0:11:32
+epoch [7/50] batch [140/167] time 0.087 (0.098) data 0.000 (0.005) loss 1.4182 (1.3104) ce_loss 0.3394 (0.3710) loss_zs_kd 0.0807 (0.0712) loss_oracle 0.1157 (0.0878) acc 90.6250 (86.2500) kd_loss 0.9806 (0.8600) lr 1.9511e-03 eta 0:11:45
+epoch [7/50] batch [160/167] time 0.068 (0.096) data 0.000 (0.004) loss 1.2322 (1.3256) ce_loss 0.2128 (0.3741) loss_zs_kd 0.0415 (0.0700) loss_oracle 0.0526 (0.0857) acc 93.7500 (86.1914) kd_loss 0.9723 (0.8736) lr 1.9511e-03 eta 0:11:27
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,209
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.2%, epoch: 7 *******
+******* Domain c best val test acc: 98.9%, epoch: 7 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [8/50] batch [20/167] time 0.103 (0.124) data 0.000 (0.028) loss 1.3007 (1.3967) ce_loss 0.2822 (0.3587) loss_zs_kd 0.0585 (0.0657) loss_oracle 0.1081 (0.0988) acc 87.5000 (86.5625) kd_loss 0.9352 (0.9557) lr 1.9298e-03 eta 0:14:49
+epoch [8/50] batch [40/167] time 0.117 (0.112) data 0.000 (0.014) loss 1.3529 (1.4157) ce_loss 0.2993 (0.3589) loss_zs_kd 0.0680 (0.0679) loss_oracle 0.1026 (0.1056) acc 90.6250 (86.3281) kd_loss 0.9683 (0.9701) lr 1.9298e-03 eta 0:13:17
+epoch [8/50] batch [60/167] time 0.098 (0.109) data 0.000 (0.010) loss 1.4989 (1.4362) ce_loss 0.3723 (0.3620) loss_zs_kd 0.1064 (0.0724) loss_oracle 0.2383 (0.1271) acc 87.5000 (86.3021) kd_loss 0.9542 (0.9744) lr 1.9298e-03 eta 0:12:58
+epoch [8/50] batch [80/167] time 0.100 (0.107) data 0.001 (0.007) loss 1.2586 (1.4478) ce_loss 0.2034 (0.3706) loss_zs_kd 0.0759 (0.0717) loss_oracle 0.0664 (0.1250) acc 93.7500 (86.3281) kd_loss 0.9841 (0.9788) lr 1.9298e-03 eta 0:12:37
+epoch [8/50] batch [100/167] time 0.107 (0.105) data 0.000 (0.006) loss 1.3206 (1.4528) ce_loss 0.3467 (0.3792) loss_zs_kd 0.0636 (0.0716) loss_oracle 0.0654 (0.1154) acc 81.2500 (86.0938) kd_loss 0.9094 (0.9801) lr 1.9298e-03 eta 0:12:25
+epoch [8/50] batch [120/167] time 0.098 (0.104) data 0.000 (0.005) loss 1.2098 (1.4406) ce_loss 0.2996 (0.3746) loss_zs_kd 0.0362 (0.0713) loss_oracle 0.0792 (0.1094) acc 84.3750 (86.1198) kd_loss 0.8525 (0.9756) lr 1.9298e-03 eta 0:12:16
+epoch [8/50] batch [140/167] time 0.111 (0.104) data 0.000 (0.004) loss 1.2950 (1.4228) ce_loss 0.3184 (0.3686) loss_zs_kd 0.0870 (0.0714) loss_oracle 0.1028 (0.1082) acc 90.6250 (86.3839) kd_loss 0.8818 (0.9644) lr 1.9298e-03 eta 0:12:12
+epoch [8/50] batch [160/167] time 0.071 (0.103) data 0.000 (0.004) loss 1.5213 (1.4126) ce_loss 0.5347 (0.3731) loss_zs_kd 0.1034 (0.0709) loss_oracle 0.0918 (0.1052) acc 78.1250 (86.1719) kd_loss 0.8890 (0.9514) lr 1.9298e-03 eta 0:12:02
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,210
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,320
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.2%, epoch: 8 *******
+******* Domain c best val test acc: 99.0%, epoch: 8 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [9/50] batch [20/167] time 0.103 (0.137) data 0.000 (0.035) loss 1.3984 (1.2864) ce_loss 0.5918 (0.4260) loss_zs_kd 0.1081 (0.0701) loss_oracle 0.1033 (0.0712) acc 78.1250 (82.8125) kd_loss 0.7009 (0.7897) lr 1.9048e-03 eta 0:15:59
+epoch [9/50] batch [40/167] time 0.104 (0.118) data 0.000 (0.018) loss 1.3277 (1.2500) ce_loss 0.5210 (0.3991) loss_zs_kd 0.0970 (0.0754) loss_oracle 0.0677 (0.0838) acc 75.0000 (84.4531) kd_loss 0.7243 (0.7713) lr 1.9048e-03 eta 0:13:45
+epoch [9/50] batch [60/167] time 0.103 (0.110) data 0.000 (0.012) loss 1.3116 (1.2511) ce_loss 0.4624 (0.4021) loss_zs_kd 0.0572 (0.0758) loss_oracle 0.1018 (0.0850) acc 81.2500 (84.6875) kd_loss 0.7697 (0.7687) lr 1.9048e-03 eta 0:12:42
+epoch [9/50] batch [80/167] time 0.089 (0.104) data 0.000 (0.009) loss 1.1201 (1.2387) ce_loss 0.3284 (0.3993) loss_zs_kd 0.0628 (0.0738) loss_oracle 0.1236 (0.0923) acc 87.5000 (84.6094) kd_loss 0.6986 (0.7564) lr 1.9048e-03 eta 0:12:02
+epoch [9/50] batch [100/167] time 0.092 (0.102) data 0.000 (0.007) loss 0.9619 (1.2349) ce_loss 0.1327 (0.3983) loss_zs_kd 0.0775 (0.0772) loss_oracle 0.0655 (0.0961) acc 100.0000 (84.4375) kd_loss 0.7577 (0.7500) lr 1.9048e-03 eta 0:11:45
+epoch [9/50] batch [120/167] time 0.109 (0.102) data 0.000 (0.006) loss 1.0780 (1.2250) ce_loss 0.3855 (0.4001) loss_zs_kd 0.0625 (0.0753) loss_oracle 0.0750 (0.0940) acc 84.3750 (84.2969) kd_loss 0.6238 (0.7403) lr 1.9048e-03 eta 0:11:42
+epoch [9/50] batch [140/167] time 0.119 (0.102) data 0.001 (0.005) loss 0.8319 (1.2091) ce_loss 0.0673 (0.3933) loss_zs_kd 0.0225 (0.0738) loss_oracle 0.0652 (0.0911) acc 96.8750 (84.7545) kd_loss 0.7208 (0.7334) lr 1.9048e-03 eta 0:11:42
+epoch [9/50] batch [160/167] time 0.089 (0.102) data 0.000 (0.005) loss 1.2256 (1.2055) ce_loss 0.5249 (0.3961) loss_zs_kd 0.0555 (0.0730) loss_oracle 0.0363 (0.0880) acc 78.1250 (84.6680) kd_loss 0.6548 (0.7288) lr 1.9048e-03 eta 0:11:40
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,211
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.7%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,322
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.3%, epoch: 9 *******
+******* Domain c best val test acc: 99.1%, epoch: 9 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [10/50] batch [20/167] time 0.128 (0.146) data 0.000 (0.042) loss 0.9920 (1.1733) ce_loss 0.2583 (0.3916) loss_zs_kd 0.0502 (0.0924) loss_oracle 0.0701 (0.0816) acc 87.5000 (85.7812) kd_loss 0.6735 (0.6946) lr 1.8763e-03 eta 0:16:36
+epoch [10/50] batch [40/167] time 0.090 (0.122) data 0.000 (0.021) loss 1.0918 (1.1445) ce_loss 0.3340 (0.3635) loss_zs_kd 0.0510 (0.0793) loss_oracle 0.0909 (0.0862) acc 93.7500 (86.7969) kd_loss 0.6868 (0.6984) lr 1.8763e-03 eta 0:13:47
+epoch [10/50] batch [60/167] time 0.148 (0.119) data 0.000 (0.014) loss 1.3454 (1.1604) ce_loss 0.4766 (0.3700) loss_zs_kd 0.0866 (0.0754) loss_oracle 0.0847 (0.0880) acc 87.5000 (86.1979) kd_loss 0.7832 (0.7088) lr 1.8763e-03 eta 0:13:27
+epoch [10/50] batch [80/167] time 0.091 (0.111) data 0.000 (0.011) loss 1.2227 (1.1704) ce_loss 0.3701 (0.3660) loss_zs_kd 0.0564 (0.0735) loss_oracle 0.1326 (0.0963) acc 90.6250 (86.4453) kd_loss 0.7581 (0.7194) lr 1.8763e-03 eta 0:12:28
+epoch [10/50] batch [100/167] time 0.096 (0.107) data 0.000 (0.009) loss 1.5745 (1.2049) ce_loss 0.5762 (0.3748) loss_zs_kd 0.0973 (0.0735) loss_oracle 0.1394 (0.1040) acc 81.2500 (86.1875) kd_loss 0.8800 (0.7413) lr 1.8763e-03 eta 0:11:59
+epoch [10/50] batch [120/167] time 0.060 (0.104) data 0.000 (0.007) loss 1.7003 (1.2325) ce_loss 0.7192 (0.3808) loss_zs_kd 0.1025 (0.0739) loss_oracle 0.1452 (0.1073) acc 71.8750 (85.9115) kd_loss 0.8573 (0.7611) lr 1.8763e-03 eta 0:11:39
+epoch [10/50] batch [140/167] time 0.088 (0.103) data 0.000 (0.006) loss 1.4689 (1.2515) ce_loss 0.4619 (0.3825) loss_zs_kd 0.0951 (0.0741) loss_oracle 0.1131 (0.1101) acc 75.0000 (85.6696) kd_loss 0.9029 (0.7769) lr 1.8763e-03 eta 0:11:28
+epoch [10/50] batch [160/167] time 0.056 (0.100) data 0.000 (0.006) loss 1.1472 (1.2542) ce_loss 0.3086 (0.3779) loss_zs_kd 0.0693 (0.0739) loss_oracle 0.0684 (0.1099) acc 87.5000 (85.8203) kd_loss 0.7698 (0.7844) lr 1.8763e-03 eta 0:11:10
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,216
+* accuracy: 96.5%
+* error: 3.5%
+* macro_f1: 96.9%
+Checkpoint saved to icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [11/50] batch [20/167] time 0.093 (0.145) data 0.000 (0.035) loss 1.4096 (1.3139) ce_loss 0.3655 (0.3547) loss_zs_kd 0.1241 (0.0766) loss_oracle 0.1240 (0.1305) acc 87.5000 (86.8750) kd_loss 0.9201 (0.8556) lr 1.8443e-03 eta 0:16:07
+epoch [11/50] batch [40/167] time 0.101 (0.125) data 0.000 (0.018) loss 1.1952 (1.3217) ce_loss 0.3052 (0.3458) loss_zs_kd 0.0689 (0.0779) loss_oracle 0.0717 (0.1189) acc 90.6250 (87.5781) kd_loss 0.8197 (0.8775) lr 1.8443e-03 eta 0:13:50
+epoch [11/50] batch [60/167] time 0.101 (0.118) data 0.000 (0.012) loss 1.4586 (1.3371) ce_loss 0.4021 (0.3448) loss_zs_kd 0.0615 (0.0736) loss_oracle 0.1036 (0.1138) acc 87.5000 (87.6562) kd_loss 0.9740 (0.8986) lr 1.8443e-03 eta 0:12:59
+epoch [11/50] batch [80/167] time 0.097 (0.114) data 0.000 (0.009) loss 1.3675 (1.3667) ce_loss 0.2952 (0.3602) loss_zs_kd 0.0705 (0.0772) loss_oracle 0.0964 (0.1142) acc 90.6250 (86.6406) kd_loss 0.9889 (0.9107) lr 1.8443e-03 eta 0:12:33
+epoch [11/50] batch [100/167] time 0.106 (0.112) data 0.000 (0.007) loss 1.3952 (1.3626) ce_loss 0.3088 (0.3485) loss_zs_kd 0.0665 (0.0748) loss_oracle 0.0916 (0.1089) acc 90.6250 (87.2500) kd_loss 1.0073 (0.9222) lr 1.8443e-03 eta 0:12:15
+epoch [11/50] batch [120/167] time 0.108 (0.110) data 0.000 (0.006) loss 1.4489 (1.3753) ce_loss 0.2632 (0.3489) loss_zs_kd 0.0509 (0.0749) loss_oracle 0.1038 (0.1070) acc 87.5000 (87.2656) kd_loss 1.1084 (0.9355) lr 1.8443e-03 eta 0:12:03
+epoch [11/50] batch [140/167] time 0.100 (0.109) data 0.000 (0.005) loss 1.3914 (1.3843) ce_loss 0.3372 (0.3515) loss_zs_kd 0.0500 (0.0740) loss_oracle 0.1309 (0.1049) acc 90.6250 (87.1205) kd_loss 0.9637 (0.9433) lr 1.8443e-03 eta 0:11:55
+epoch [11/50] batch [160/167] time 0.090 (0.108) data 0.000 (0.005) loss 1.5853 (1.3901) ce_loss 0.4778 (0.3556) loss_zs_kd 0.1154 (0.0755) loss_oracle 0.0801 (0.1025) acc 78.1250 (86.9141) kd_loss 1.0097 (0.9456) lr 1.8443e-03 eta 0:11:42
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,210
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,322
+* accuracy: 99.1%
+* error: 0.9%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [12/50] batch [20/167] time 0.106 (0.136) data 0.000 (0.038) loss 1.3826 (1.3512) ce_loss 0.4272 (0.3406) loss_zs_kd 0.0807 (0.0685) loss_oracle 0.0562 (0.0688) acc 84.3750 (87.5000) kd_loss 0.8869 (0.9419) lr 1.8090e-03 eta 0:14:41
+epoch [12/50] batch [40/167] time 0.099 (0.116) data 0.000 (0.019) loss 1.3294 (1.3397) ce_loss 0.3621 (0.3313) loss_zs_kd 0.0788 (0.0704) loss_oracle 0.0592 (0.0706) acc 84.3750 (87.8906) kd_loss 0.8983 (0.9379) lr 1.8090e-03 eta 0:12:33
+epoch [12/50] batch [60/167] time 0.108 (0.112) data 0.001 (0.013) loss 1.4327 (1.3717) ce_loss 0.4443 (0.3578) loss_zs_kd 0.0950 (0.0730) loss_oracle 0.0815 (0.0747) acc 84.3750 (87.2396) kd_loss 0.9002 (0.9400) lr 1.8090e-03 eta 0:11:59
+epoch [12/50] batch [80/167] time 0.101 (0.109) data 0.000 (0.010) loss 1.4105 (1.3785) ce_loss 0.3787 (0.3670) loss_zs_kd 0.1420 (0.0728) loss_oracle 0.0962 (0.0765) acc 87.5000 (86.9531) kd_loss 0.9127 (0.9368) lr 1.8090e-03 eta 0:11:40
+epoch [12/50] batch [100/167] time 0.075 (0.109) data 0.000 (0.008) loss 1.3770 (1.3900) ce_loss 0.3020 (0.3699) loss_zs_kd 0.0596 (0.0738) loss_oracle 0.0842 (0.0791) acc 93.7500 (86.6250) kd_loss 1.0031 (0.9436) lr 1.8090e-03 eta 0:11:37
+epoch [12/50] batch [120/167] time 0.103 (0.105) data 0.000 (0.007) loss 1.5441 (1.3990) ce_loss 0.4526 (0.3789) loss_zs_kd 0.1262 (0.0755) loss_oracle 0.1023 (0.0809) acc 84.3750 (86.4323) kd_loss 0.9772 (0.9419) lr 1.8090e-03 eta 0:11:09
+epoch [12/50] batch [140/167] time 0.104 (0.104) data 0.000 (0.006) loss 1.1357 (1.4029) ce_loss 0.1592 (0.3804) loss_zs_kd 0.0473 (0.0758) loss_oracle 0.1234 (0.0847) acc 93.7500 (86.2946) kd_loss 0.8911 (0.9422) lr 1.8090e-03 eta 0:11:05
+epoch [12/50] batch [160/167] time 0.088 (0.103) data 0.000 (0.005) loss 1.4162 (1.4045) ce_loss 0.2888 (0.3763) loss_zs_kd 0.0896 (0.0761) loss_oracle 0.1203 (0.0899) acc 93.7500 (86.4062) kd_loss 1.0224 (0.9452) lr 1.8090e-03 eta 0:10:53
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,209
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [13/50] batch [20/167] time 0.151 (0.147) data 0.000 (0.036) loss 1.4046 (1.4708) ce_loss 0.3289 (0.3930) loss_zs_kd 0.0676 (0.0630) loss_oracle 0.0665 (0.1041) acc 90.6250 (86.0938) kd_loss 1.0087 (0.9942) lr 1.7705e-03 eta 0:15:27
+epoch [13/50] batch [40/167] time 0.089 (0.132) data 0.000 (0.018) loss 1.3549 (1.4623) ce_loss 0.3020 (0.3899) loss_zs_kd 0.1037 (0.0744) loss_oracle 0.0688 (0.1003) acc 90.6250 (85.7031) kd_loss 0.9666 (0.9851) lr 1.7705e-03 eta 0:13:54
+epoch [13/50] batch [60/167] time 0.085 (0.126) data 0.000 (0.012) loss 1.2364 (1.4433) ce_loss 0.1779 (0.3743) loss_zs_kd 0.0437 (0.0758) loss_oracle 0.0949 (0.0929) acc 93.7500 (85.9896) kd_loss 0.9892 (0.9847) lr 1.7705e-03 eta 0:13:13
+epoch [13/50] batch [80/167] time 0.087 (0.120) data 0.000 (0.009) loss 1.3679 (1.4262) ce_loss 0.2844 (0.3682) loss_zs_kd 0.1085 (0.0737) loss_oracle 0.0999 (0.0880) acc 90.6250 (86.3281) kd_loss 0.9793 (0.9772) lr 1.7705e-03 eta 0:12:29
+epoch [13/50] batch [100/167] time 0.086 (0.113) data 0.000 (0.007) loss 1.2828 (1.4178) ce_loss 0.2922 (0.3693) loss_zs_kd 0.0626 (0.0733) loss_oracle 0.0826 (0.0894) acc 90.6250 (86.3438) kd_loss 0.9180 (0.9671) lr 1.7705e-03 eta 0:11:43
+epoch [13/50] batch [120/167] time 0.078 (0.110) data 0.000 (0.006) loss 1.1542 (1.4105) ce_loss 0.2006 (0.3715) loss_zs_kd 0.0572 (0.0718) loss_oracle 0.0581 (0.0861) acc 93.7500 (86.1458) kd_loss 0.8960 (0.9600) lr 1.7705e-03 eta 0:11:26
+epoch [13/50] batch [140/167] time 0.172 (0.110) data 0.000 (0.005) loss 1.8319 (1.4119) ce_loss 0.8276 (0.3792) loss_zs_kd 0.0917 (0.0709) loss_oracle 0.1064 (0.0872) acc 62.5000 (85.8036) kd_loss 0.9052 (0.9537) lr 1.7705e-03 eta 0:11:22
+epoch [13/50] batch [160/167] time 0.168 (0.111) data 0.000 (0.005) loss 1.3069 (1.4067) ce_loss 0.2708 (0.3757) loss_zs_kd 0.0893 (0.0722) loss_oracle 0.0796 (0.0885) acc 93.7500 (86.0547) kd_loss 0.9517 (0.9507) lr 1.7705e-03 eta 0:11:25
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,215
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [14/50] batch [20/167] time 0.098 (0.142) data 0.000 (0.045) loss 1.4217 (1.3358) ce_loss 0.3594 (0.3438) loss_zs_kd 0.0976 (0.0921) loss_oracle 0.0823 (0.0892) acc 90.6250 (87.9688) kd_loss 0.9724 (0.9013) lr 1.7290e-03 eta 0:14:33
+epoch [14/50] batch [40/167] time 0.088 (0.119) data 0.000 (0.023) loss 1.1922 (1.3229) ce_loss 0.2120 (0.3402) loss_zs_kd 0.0737 (0.0931) loss_oracle 0.0859 (0.0907) acc 90.6250 (87.5781) kd_loss 0.9004 (0.8908) lr 1.7290e-03 eta 0:12:09
+epoch [14/50] batch [60/167] time 0.098 (0.112) data 0.000 (0.015) loss 1.3449 (1.3391) ce_loss 0.4285 (0.3488) loss_zs_kd 0.0688 (0.0939) loss_oracle 0.1053 (0.0886) acc 81.2500 (87.1354) kd_loss 0.8293 (0.8991) lr 1.7290e-03 eta 0:11:26
+epoch [14/50] batch [80/167] time 0.103 (0.109) data 0.000 (0.011) loss 1.4456 (1.3432) ce_loss 0.4495 (0.3560) loss_zs_kd 0.0825 (0.0918) loss_oracle 0.1046 (0.0886) acc 75.0000 (86.8750) kd_loss 0.9025 (0.8970) lr 1.7290e-03 eta 0:11:07
+epoch [14/50] batch [100/167] time 0.105 (0.108) data 0.000 (0.009) loss 1.4431 (1.3390) ce_loss 0.4226 (0.3602) loss_zs_kd 0.0714 (0.0872) loss_oracle 0.0833 (0.0906) acc 84.3750 (86.7500) kd_loss 0.9431 (0.8899) lr 1.7290e-03 eta 0:10:56
+epoch [14/50] batch [120/167] time 0.104 (0.107) data 0.000 (0.008) loss 1.3838 (1.3472) ce_loss 0.3901 (0.3688) loss_zs_kd 0.0823 (0.0845) loss_oracle 0.0866 (0.0913) acc 90.6250 (86.3802) kd_loss 0.9092 (0.8905) lr 1.7290e-03 eta 0:10:46
+epoch [14/50] batch [140/167] time 0.098 (0.106) data 0.000 (0.007) loss 1.5137 (1.3405) ce_loss 0.5591 (0.3711) loss_zs_kd 0.0942 (0.0843) loss_oracle 0.0638 (0.0908) acc 81.2500 (86.2946) kd_loss 0.8756 (0.8818) lr 1.7290e-03 eta 0:10:40
+epoch [14/50] batch [160/167] time 0.089 (0.105) data 0.000 (0.006) loss 1.2792 (1.3324) ce_loss 0.3613 (0.3716) loss_zs_kd 0.0681 (0.0833) loss_oracle 0.1020 (0.0898) acc 84.3750 (86.2695) kd_loss 0.8329 (0.8742) lr 1.7290e-03 eta 0:10:31
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,209
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [15/50] batch [20/167] time 0.098 (0.149) data 0.000 (0.049) loss 1.2932 (1.3185) ce_loss 0.4033 (0.4026) loss_zs_kd 0.0316 (0.0672) loss_oracle 0.1156 (0.1071) acc 84.3750 (85.9375) kd_loss 0.8163 (0.8287) lr 1.6845e-03 eta 0:14:53
+epoch [15/50] batch [40/167] time 0.103 (0.125) data 0.000 (0.024) loss 1.0436 (1.2711) ce_loss 0.1725 (0.3668) loss_zs_kd 0.0595 (0.0680) loss_oracle 0.1051 (0.1054) acc 96.8750 (87.2656) kd_loss 0.7889 (0.8176) lr 1.6845e-03 eta 0:12:24
+epoch [15/50] batch [60/167] time 0.108 (0.117) data 0.001 (0.016) loss 1.0237 (1.2497) ce_loss 0.2051 (0.3479) loss_zs_kd 0.0486 (0.0679) loss_oracle 0.1115 (0.1112) acc 90.6250 (87.7604) kd_loss 0.7385 (0.8123) lr 1.6845e-03 eta 0:11:38
+epoch [15/50] batch [80/167] time 0.097 (0.113) data 0.000 (0.012) loss 1.2030 (1.2710) ce_loss 0.3079 (0.3657) loss_zs_kd 0.0923 (0.0699) loss_oracle 0.0805 (0.1144) acc 90.6250 (87.1875) kd_loss 0.8087 (0.8131) lr 1.6845e-03 eta 0:11:08
+epoch [15/50] batch [100/167] time 0.101 (0.110) data 0.000 (0.010) loss 1.1635 (1.2711) ce_loss 0.3572 (0.3648) loss_zs_kd 0.0726 (0.0725) loss_oracle 0.1025 (0.1151) acc 87.5000 (87.2500) kd_loss 0.7188 (0.8125) lr 1.6845e-03 eta 0:10:47
+epoch [15/50] batch [120/167] time 0.100 (0.107) data 0.000 (0.008) loss 1.2944 (1.2612) ce_loss 0.4021 (0.3562) loss_zs_kd 0.1515 (0.0726) loss_oracle 0.0993 (0.1118) acc 81.2500 (87.5000) kd_loss 0.7669 (0.8128) lr 1.6845e-03 eta 0:10:30
+epoch [15/50] batch [140/167] time 0.102 (0.107) data 0.000 (0.007) loss 1.1991 (1.2654) ce_loss 0.2646 (0.3577) loss_zs_kd 0.0631 (0.0730) loss_oracle 0.0999 (0.1094) acc 90.6250 (87.4107) kd_loss 0.8529 (0.8164) lr 1.6845e-03 eta 0:10:26
+epoch [15/50] batch [160/167] time 0.092 (0.105) data 0.000 (0.006) loss 1.3540 (1.2714) ce_loss 0.3987 (0.3601) loss_zs_kd 0.0841 (0.0737) loss_oracle 0.1138 (0.1073) acc 84.3750 (87.2852) kd_loss 0.8564 (0.8208) lr 1.6845e-03 eta 0:10:16
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,214
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [16/50] batch [20/167] time 0.075 (0.159) data 0.000 (0.046) loss 1.3184 (1.3617) ce_loss 0.3521 (0.3960) loss_zs_kd 0.0780 (0.0881) loss_oracle 0.0758 (0.0760) acc 84.3750 (85.0000) kd_loss 0.8895 (0.8837) lr 1.6374e-03 eta 0:15:23
+epoch [16/50] batch [40/167] time 0.079 (0.136) data 0.000 (0.023) loss 1.1519 (1.3125) ce_loss 0.2783 (0.3731) loss_zs_kd 0.0937 (0.0741) loss_oracle 0.0704 (0.0783) acc 90.6250 (86.4844) kd_loss 0.7915 (0.8633) lr 1.6374e-03 eta 0:13:11
+epoch [16/50] batch [60/167] time 0.081 (0.126) data 0.000 (0.016) loss 1.2823 (1.3119) ce_loss 0.3625 (0.3732) loss_zs_kd 0.1059 (0.0796) loss_oracle 0.0844 (0.0805) acc 84.3750 (86.4062) kd_loss 0.8246 (0.8586) lr 1.6374e-03 eta 0:12:07
+epoch [16/50] batch [80/167] time 0.091 (0.121) data 0.000 (0.012) loss 1.4001 (1.3152) ce_loss 0.4839 (0.3757) loss_zs_kd 0.0658 (0.0790) loss_oracle 0.1021 (0.0823) acc 78.1250 (86.0547) kd_loss 0.8322 (0.8588) lr 1.6374e-03 eta 0:11:35
+epoch [16/50] batch [100/167] time 0.086 (0.114) data 0.000 (0.010) loss 1.2364 (1.3102) ce_loss 0.2805 (0.3764) loss_zs_kd 0.1263 (0.0801) loss_oracle 0.0605 (0.0797) acc 90.6250 (86.0625) kd_loss 0.8624 (0.8538) lr 1.6374e-03 eta 0:10:54
+epoch [16/50] batch [120/167] time 0.084 (0.110) data 0.000 (0.008) loss 1.4135 (1.3066) ce_loss 0.4702 (0.3777) loss_zs_kd 0.0804 (0.0782) loss_oracle 0.0908 (0.0817) acc 87.5000 (85.8854) kd_loss 0.8577 (0.8489) lr 1.6374e-03 eta 0:10:28
+epoch [16/50] batch [140/167] time 0.083 (0.108) data 0.000 (0.007) loss 1.0083 (1.2931) ce_loss 0.1923 (0.3712) loss_zs_kd 0.0613 (0.0761) loss_oracle 0.0749 (0.0823) acc 93.7500 (86.2723) kd_loss 0.7479 (0.8428) lr 1.6374e-03 eta 0:10:16
+epoch [16/50] batch [160/167] time 0.085 (0.108) data 0.000 (0.006) loss 1.4036 (1.2890) ce_loss 0.5049 (0.3737) loss_zs_kd 0.0987 (0.0760) loss_oracle 0.0879 (0.0811) acc 81.2500 (86.2500) kd_loss 0.8054 (0.8368) lr 1.6374e-03 eta 0:10:11
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,214
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [17/50] batch [20/167] time 0.097 (0.151) data 0.000 (0.052) loss 1.1787 (1.2264) ce_loss 0.4160 (0.3752) loss_zs_kd 0.0622 (0.0845) loss_oracle 0.0751 (0.0847) acc 78.1250 (86.4062) kd_loss 0.6940 (0.7666) lr 1.5878e-03 eta 0:14:12
+epoch [17/50] batch [40/167] time 0.095 (0.124) data 0.000 (0.026) loss 1.1178 (1.1956) ce_loss 0.2661 (0.3559) loss_zs_kd 0.0725 (0.0765) loss_oracle 0.0749 (0.0836) acc 90.6250 (87.1875) kd_loss 0.7780 (0.7597) lr 1.5878e-03 eta 0:11:40
+epoch [17/50] batch [60/167] time 0.104 (0.116) data 0.000 (0.017) loss 0.9688 (1.1969) ce_loss 0.1687 (0.3493) loss_zs_kd 0.1201 (0.0787) loss_oracle 0.1240 (0.0875) acc 100.0000 (87.3958) kd_loss 0.6780 (0.7646) lr 1.5878e-03 eta 0:10:50
+epoch [17/50] batch [80/167] time 0.104 (0.111) data 0.000 (0.013) loss 1.2711 (1.2226) ce_loss 0.3704 (0.3685) loss_zs_kd 0.0566 (0.0802) loss_oracle 0.0850 (0.0878) acc 87.5000 (86.6406) kd_loss 0.8299 (0.7701) lr 1.5878e-03 eta 0:10:22
+epoch [17/50] batch [100/167] time 0.112 (0.109) data 0.000 (0.011) loss 1.2686 (1.2206) ce_loss 0.3372 (0.3649) loss_zs_kd 0.0807 (0.0795) loss_oracle 0.1291 (0.0895) acc 84.3750 (86.6875) kd_loss 0.8266 (0.7712) lr 1.5878e-03 eta 0:10:10
+epoch [17/50] batch [120/167] time 0.105 (0.108) data 0.000 (0.009) loss 1.2103 (1.2204) ce_loss 0.3088 (0.3629) loss_zs_kd 0.0631 (0.0797) loss_oracle 0.1078 (0.0910) acc 87.5000 (86.5625) kd_loss 0.8160 (0.7722) lr 1.5878e-03 eta 0:10:00
+epoch [17/50] batch [140/167] time 0.103 (0.108) data 0.000 (0.008) loss 1.3187 (1.2192) ce_loss 0.3733 (0.3577) loss_zs_kd 0.0720 (0.0788) loss_oracle 0.1222 (0.0903) acc 87.5000 (86.7411) kd_loss 0.8483 (0.7769) lr 1.5878e-03 eta 0:09:55
+epoch [17/50] batch [160/167] time 0.096 (0.107) data 0.000 (0.007) loss 1.1116 (1.2222) ce_loss 0.1791 (0.3577) loss_zs_kd 0.0570 (0.0788) loss_oracle 0.1271 (0.0910) acc 90.6250 (86.8164) kd_loss 0.8405 (0.7796) lr 1.5878e-03 eta 0:09:48
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,215
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [18/50] batch [20/167] time 0.099 (0.149) data 0.000 (0.050) loss 1.0814 (1.2520) ce_loss 0.2059 (0.3646) loss_zs_kd 0.0426 (0.0682) loss_oracle 0.0957 (0.0724) acc 90.6250 (86.8750) kd_loss 0.8064 (0.8170) lr 1.5358e-03 eta 0:13:36
+epoch [18/50] batch [40/167] time 0.093 (0.123) data 0.000 (0.025) loss 1.3293 (1.2555) ce_loss 0.3088 (0.3644) loss_zs_kd 0.1088 (0.0733) loss_oracle 0.0987 (0.0766) acc 87.5000 (86.4062) kd_loss 0.9168 (0.8162) lr 1.5358e-03 eta 0:11:12
+epoch [18/50] batch [60/167] time 0.099 (0.114) data 0.000 (0.017) loss 1.2324 (1.2616) ce_loss 0.3440 (0.3680) loss_zs_kd 0.0602 (0.0768) loss_oracle 0.0851 (0.0815) acc 84.3750 (86.3542) kd_loss 0.8158 (0.8144) lr 1.5358e-03 eta 0:10:22
+epoch [18/50] batch [80/167] time 0.099 (0.110) data 0.000 (0.013) loss 1.3221 (1.2677) ce_loss 0.4971 (0.3761) loss_zs_kd 0.0624 (0.0758) loss_oracle 0.0823 (0.0840) acc 81.2500 (85.6250) kd_loss 0.7527 (0.8117) lr 1.5358e-03 eta 0:09:57
+epoch [18/50] batch [100/167] time 0.104 (0.108) data 0.000 (0.010) loss 1.0927 (1.2448) ce_loss 0.3110 (0.3588) loss_zs_kd 0.0512 (0.0759) loss_oracle 0.0704 (0.0820) acc 84.3750 (86.4062) kd_loss 0.7209 (0.8070) lr 1.5358e-03 eta 0:09:44
+epoch [18/50] batch [120/167] time 0.094 (0.106) data 0.000 (0.008) loss 1.2607 (1.2493) ce_loss 0.3113 (0.3591) loss_zs_kd 0.0640 (0.0769) loss_oracle 0.1111 (0.0819) acc 87.5000 (86.5104) kd_loss 0.8619 (0.8108) lr 1.5358e-03 eta 0:09:32
+epoch [18/50] batch [140/167] time 0.100 (0.105) data 0.000 (0.007) loss 1.2866 (1.2581) ce_loss 0.3381 (0.3621) loss_zs_kd 0.1146 (0.0777) loss_oracle 0.0971 (0.0841) acc 87.5000 (86.4509) kd_loss 0.8426 (0.8151) lr 1.5358e-03 eta 0:09:25
+epoch [18/50] batch [160/167] time 0.077 (0.104) data 0.000 (0.006) loss 1.1832 (1.2660) ce_loss 0.3137 (0.3669) loss_zs_kd 0.0676 (0.0797) loss_oracle 0.0725 (0.0848) acc 90.6250 (86.3477) kd_loss 0.7995 (0.8169) lr 1.5358e-03 eta 0:09:14
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,211
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [19/50] batch [20/167] time 0.080 (0.165) data 0.000 (0.062) loss 1.4653 (1.2895) ce_loss 0.5522 (0.3686) loss_zs_kd 0.0882 (0.0828) loss_oracle 0.0918 (0.0907) acc 78.1250 (86.7188) kd_loss 0.8231 (0.8341) lr 1.4818e-03 eta 0:14:36
+epoch [19/50] batch [40/167] time 0.080 (0.139) data 0.000 (0.031) loss 1.1978 (1.2975) ce_loss 0.3333 (0.3880) loss_zs_kd 0.0523 (0.0857) loss_oracle 0.0835 (0.0883) acc 87.5000 (86.2500) kd_loss 0.7966 (0.8225) lr 1.4818e-03 eta 0:12:17
+epoch [19/50] batch [60/167] time 0.085 (0.130) data 0.001 (0.021) loss 1.3310 (1.2659) ce_loss 0.3591 (0.3627) loss_zs_kd 0.0605 (0.0796) loss_oracle 0.1028 (0.0884) acc 87.5000 (87.1875) kd_loss 0.8902 (0.8192) lr 1.4818e-03 eta 0:11:27
+epoch [19/50] batch [80/167] time 0.084 (0.121) data 0.000 (0.016) loss 1.2651 (1.2659) ce_loss 0.3650 (0.3641) loss_zs_kd 0.0799 (0.0777) loss_oracle 0.0817 (0.0898) acc 87.5000 (87.2656) kd_loss 0.8193 (0.8181) lr 1.4818e-03 eta 0:10:37
+epoch [19/50] batch [100/167] time 0.074 (0.113) data 0.000 (0.013) loss 1.4206 (1.2744) ce_loss 0.5029 (0.3705) loss_zs_kd 0.0848 (0.0807) loss_oracle 0.0900 (0.0907) acc 78.1250 (86.5938) kd_loss 0.8303 (0.8181) lr 1.4818e-03 eta 0:09:53
+epoch [19/50] batch [120/167] time 0.070 (0.106) data 0.000 (0.011) loss 1.3530 (1.2680) ce_loss 0.5435 (0.3637) loss_zs_kd 0.0966 (0.0787) loss_oracle 0.0690 (0.0892) acc 78.1250 (86.9271) kd_loss 0.7268 (0.8203) lr 1.4818e-03 eta 0:09:15
+epoch [19/50] batch [140/167] time 0.146 (0.103) data 0.000 (0.009) loss 1.2345 (1.2717) ce_loss 0.2771 (0.3671) loss_zs_kd 0.1275 (0.0789) loss_oracle 0.1221 (0.0894) acc 87.5000 (86.7634) kd_loss 0.8326 (0.8204) lr 1.4818e-03 eta 0:08:55
+epoch [19/50] batch [160/167] time 0.066 (0.103) data 0.000 (0.008) loss 1.2597 (1.2725) ce_loss 0.3816 (0.3690) loss_zs_kd 0.0843 (0.0792) loss_oracle 0.0890 (0.0879) acc 84.3750 (86.6406) kd_loss 0.7914 (0.8199) lr 1.4818e-03 eta 0:08:52
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,215
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [20/50] batch [20/167] time 0.098 (0.154) data 0.000 (0.052) loss 1.4602 (1.2406) ce_loss 0.5176 (0.3292) loss_zs_kd 0.1379 (0.0804) loss_oracle 0.1060 (0.0860) acc 81.2500 (87.5000) kd_loss 0.8206 (0.8282) lr 1.4258e-03 eta 0:13:14
+epoch [20/50] batch [40/167] time 0.102 (0.127) data 0.000 (0.026) loss 1.2239 (1.2546) ce_loss 0.2971 (0.3372) loss_zs_kd 0.0591 (0.0770) loss_oracle 0.1056 (0.0857) acc 90.6250 (87.1875) kd_loss 0.8445 (0.8361) lr 1.4258e-03 eta 0:10:53
+epoch [20/50] batch [60/167] time 0.113 (0.118) data 0.000 (0.017) loss 1.2093 (1.2620) ce_loss 0.3542 (0.3479) loss_zs_kd 0.0538 (0.0729) loss_oracle 0.0830 (0.0851) acc 87.5000 (86.8229) kd_loss 0.7866 (0.8351) lr 1.4258e-03 eta 0:10:05
+epoch [20/50] batch [80/167] time 0.096 (0.114) data 0.000 (0.013) loss 1.2938 (1.2647) ce_loss 0.3767 (0.3458) loss_zs_kd 0.1026 (0.0736) loss_oracle 0.0810 (0.0844) acc 90.6250 (87.2656) kd_loss 0.8253 (0.8399) lr 1.4258e-03 eta 0:09:42
+epoch [20/50] batch [100/167] time 0.102 (0.112) data 0.000 (0.011) loss 1.4580 (1.2631) ce_loss 0.4646 (0.3467) loss_zs_kd 0.1113 (0.0758) loss_oracle 0.0778 (0.0836) acc 84.3750 (87.2500) kd_loss 0.8989 (0.8367) lr 1.4258e-03 eta 0:09:26
+epoch [20/50] batch [120/167] time 0.100 (0.110) data 0.000 (0.009) loss 1.3101 (1.2613) ce_loss 0.4290 (0.3462) loss_zs_kd 0.1138 (0.0764) loss_oracle 0.0831 (0.0839) acc 87.5000 (87.2656) kd_loss 0.7827 (0.8349) lr 1.4258e-03 eta 0:09:14
+epoch [20/50] batch [140/167] time 0.109 (0.109) data 0.000 (0.008) loss 1.2893 (1.2643) ce_loss 0.4080 (0.3525) loss_zs_kd 0.0704 (0.0769) loss_oracle 0.0707 (0.0843) acc 84.3750 (87.0536) kd_loss 0.8107 (0.8312) lr 1.4258e-03 eta 0:09:06
+epoch [20/50] batch [160/167] time 0.095 (0.107) data 0.000 (0.007) loss 1.1810 (1.2556) ce_loss 0.2937 (0.3475) loss_zs_kd 0.0788 (0.0758) loss_oracle 0.1372 (0.0858) acc 87.5000 (87.3047) kd_loss 0.7793 (0.8273) lr 1.4258e-03 eta 0:08:57
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,213
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.7%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [21/50] batch [20/167] time 0.094 (0.169) data 0.000 (0.064) loss 1.1324 (1.3012) ce_loss 0.3242 (0.4047) loss_zs_kd 0.0674 (0.0810) loss_oracle 0.1069 (0.1009) acc 87.5000 (84.5312) kd_loss 0.7211 (0.8056) lr 1.3681e-03 eta 0:14:04
+epoch [21/50] batch [40/167] time 0.094 (0.136) data 0.000 (0.032) loss 1.1887 (1.2732) ce_loss 0.2832 (0.3902) loss_zs_kd 0.0911 (0.0809) loss_oracle 0.1079 (0.0965) acc 87.5000 (84.7656) kd_loss 0.8060 (0.7943) lr 1.3681e-03 eta 0:11:15
+epoch [21/50] batch [60/167] time 0.093 (0.123) data 0.000 (0.022) loss 1.2644 (1.2762) ce_loss 0.2515 (0.3815) loss_zs_kd 0.1089 (0.0820) loss_oracle 0.0834 (0.0975) acc 90.6250 (85.3646) kd_loss 0.9168 (0.8049) lr 1.3681e-03 eta 0:10:09
+epoch [21/50] batch [80/167] time 0.096 (0.118) data 0.000 (0.016) loss 1.2642 (1.2714) ce_loss 0.3350 (0.3737) loss_zs_kd 0.1151 (0.0794) loss_oracle 0.0990 (0.0988) acc 87.5000 (85.9375) kd_loss 0.8222 (0.8086) lr 1.3681e-03 eta 0:09:39
+epoch [21/50] batch [100/167] time 0.097 (0.114) data 0.000 (0.013) loss 1.2062 (1.2740) ce_loss 0.3137 (0.3750) loss_zs_kd 0.0911 (0.0787) loss_oracle 0.0708 (0.0992) acc 90.6250 (85.8750) kd_loss 0.8115 (0.8100) lr 1.3681e-03 eta 0:09:20
+epoch [21/50] batch [120/167] time 0.100 (0.112) data 0.000 (0.011) loss 1.2529 (1.2767) ce_loss 0.3550 (0.3733) loss_zs_kd 0.1103 (0.0785) loss_oracle 0.1021 (0.0984) acc 84.3750 (85.8594) kd_loss 0.7917 (0.8149) lr 1.3681e-03 eta 0:09:08
+epoch [21/50] batch [140/167] time 0.093 (0.112) data 0.000 (0.009) loss 1.2964 (1.2808) ce_loss 0.3059 (0.3707) loss_zs_kd 0.1296 (0.0807) loss_oracle 0.0798 (0.0973) acc 93.7500 (86.0714) kd_loss 0.8858 (0.8211) lr 1.3681e-03 eta 0:09:03
+epoch [21/50] batch [160/167] time 0.071 (0.110) data 0.000 (0.008) loss 1.3786 (1.2856) ce_loss 0.3391 (0.3714) loss_zs_kd 0.1030 (0.0798) loss_oracle 0.1015 (0.0970) acc 84.3750 (86.0938) kd_loss 0.9373 (0.8257) lr 1.3681e-03 eta 0:08:51
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,209
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [22/50] batch [20/167] time 0.154 (0.181) data 0.000 (0.067) loss 1.3530 (1.2910) ce_loss 0.3916 (0.3331) loss_zs_kd 0.1346 (0.0851) loss_oracle 0.0908 (0.1021) acc 84.3750 (87.3438) kd_loss 0.8487 (0.8643) lr 1.3090e-03 eta 0:14:33
+epoch [22/50] batch [40/167] time 0.161 (0.144) data 0.000 (0.034) loss 1.3321 (1.3118) ce_loss 0.3721 (0.3465) loss_zs_kd 0.0859 (0.0821) loss_oracle 0.0869 (0.0902) acc 84.3750 (86.7188) kd_loss 0.8736 (0.8791) lr 1.3090e-03 eta 0:11:31
+epoch [22/50] batch [60/167] time 0.103 (0.127) data 0.001 (0.023) loss 1.1427 (1.3005) ce_loss 0.1351 (0.3346) loss_zs_kd 0.0580 (0.0829) loss_oracle 0.0647 (0.0858) acc 96.8750 (87.6562) kd_loss 0.9462 (0.8816) lr 1.3090e-03 eta 0:10:09
+epoch [22/50] batch [80/167] time 0.086 (0.117) data 0.000 (0.017) loss 1.3114 (1.3128) ce_loss 0.3318 (0.3462) loss_zs_kd 0.0710 (0.0823) loss_oracle 0.0864 (0.0859) acc 84.3750 (87.0703) kd_loss 0.9009 (0.8826) lr 1.3090e-03 eta 0:09:18
+epoch [22/50] batch [100/167] time 0.088 (0.112) data 0.000 (0.014) loss 1.1380 (1.2990) ce_loss 0.1525 (0.3328) loss_zs_kd 0.0525 (0.0812) loss_oracle 0.1142 (0.0855) acc 93.7500 (87.6250) kd_loss 0.9022 (0.8829) lr 1.3090e-03 eta 0:08:49
+epoch [22/50] batch [120/167] time 0.139 (0.108) data 0.000 (0.011) loss 1.4297 (1.3075) ce_loss 0.4587 (0.3438) loss_zs_kd 0.0971 (0.0787) loss_oracle 0.1147 (0.0859) acc 87.5000 (87.1875) kd_loss 0.8651 (0.8814) lr 1.3090e-03 eta 0:08:28
+epoch [22/50] batch [140/167] time 0.088 (0.108) data 0.000 (0.010) loss 1.4719 (1.3130) ce_loss 0.5083 (0.3471) loss_zs_kd 0.0845 (0.0777) loss_oracle 0.0863 (0.0867) acc 75.0000 (87.0759) kd_loss 0.8782 (0.8837) lr 1.3090e-03 eta 0:08:26
+epoch [22/50] batch [160/167] time 0.163 (0.108) data 0.000 (0.009) loss 1.3468 (1.3225) ce_loss 0.3511 (0.3527) loss_zs_kd 0.0750 (0.0789) loss_oracle 0.0847 (0.0866) acc 87.5000 (86.8359) kd_loss 0.9159 (0.8870) lr 1.3090e-03 eta 0:08:26
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,213
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,320
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [23/50] batch [20/167] time 0.102 (0.147) data 0.000 (0.051) loss 1.3263 (1.3425) ce_loss 0.3057 (0.3771) loss_zs_kd 0.0951 (0.0899) loss_oracle 0.1024 (0.0872) acc 84.3750 (85.4688) kd_loss 0.9219 (0.8769) lr 1.2487e-03 eta 0:11:24
+epoch [23/50] batch [40/167] time 0.090 (0.120) data 0.000 (0.026) loss 1.3723 (1.3340) ce_loss 0.3389 (0.3567) loss_zs_kd 0.0609 (0.0815) loss_oracle 0.1170 (0.0961) acc 90.6250 (86.6406) kd_loss 0.9444 (0.8885) lr 1.2487e-03 eta 0:09:18
+epoch [23/50] batch [60/167] time 0.093 (0.111) data 0.000 (0.017) loss 1.3339 (1.3420) ce_loss 0.2600 (0.3687) loss_zs_kd 0.0834 (0.0798) loss_oracle 0.1450 (0.1010) acc 93.7500 (86.5104) kd_loss 0.9597 (0.8828) lr 1.2487e-03 eta 0:08:33
+epoch [23/50] batch [80/167] time 0.083 (0.105) data 0.000 (0.013) loss 1.6360 (1.3497) ce_loss 0.6313 (0.3741) loss_zs_kd 0.0912 (0.0828) loss_oracle 0.1059 (0.1046) acc 78.1250 (86.2891) kd_loss 0.9061 (0.8820) lr 1.2487e-03 eta 0:08:04
+epoch [23/50] batch [100/167] time 0.089 (0.101) data 0.000 (0.010) loss 1.3889 (1.3454) ce_loss 0.4219 (0.3654) loss_zs_kd 0.0729 (0.0825) loss_oracle 0.1222 (0.1058) acc 84.3750 (86.6250) kd_loss 0.8694 (0.8858) lr 1.2487e-03 eta 0:07:42
+epoch [23/50] batch [120/167] time 0.078 (0.098) data 0.000 (0.009) loss 1.1559 (1.3434) ce_loss 0.2179 (0.3686) loss_zs_kd 0.0904 (0.0827) loss_oracle 0.0932 (0.1053) acc 90.6250 (86.5365) kd_loss 0.8462 (0.8807) lr 1.2487e-03 eta 0:07:28
+epoch [23/50] batch [140/167] time 0.098 (0.099) data 0.000 (0.008) loss 1.5089 (1.3412) ce_loss 0.5298 (0.3664) loss_zs_kd 0.1529 (0.0822) loss_oracle 0.1005 (0.1064) acc 81.2500 (86.4732) kd_loss 0.8525 (0.8805) lr 1.2487e-03 eta 0:07:26
+epoch [23/50] batch [160/167] time 0.087 (0.099) data 0.000 (0.007) loss 1.3214 (1.3477) ce_loss 0.3044 (0.3727) loss_zs_kd 0.0942 (0.0824) loss_oracle 0.0790 (0.1062) acc 87.5000 (86.2500) kd_loss 0.9303 (0.8807) lr 1.2487e-03 eta 0:07:26
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,212
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.7%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [24/50] batch [20/167] time 0.102 (0.173) data 0.000 (0.068) loss 1.5864 (1.3379) ce_loss 0.4800 (0.3413) loss_zs_kd 0.1009 (0.0816) loss_oracle 0.1391 (0.1094) acc 81.2500 (88.2812) kd_loss 0.9865 (0.9011) lr 1.1874e-03 eta 0:12:54
+epoch [24/50] batch [40/167] time 0.091 (0.138) data 0.000 (0.034) loss 1.3463 (1.3373) ce_loss 0.3784 (0.3474) loss_zs_kd 0.1116 (0.0843) loss_oracle 0.0967 (0.1072) acc 90.6250 (87.8906) kd_loss 0.8638 (0.8941) lr 1.1874e-03 eta 0:10:16
+epoch [24/50] batch [60/167] time 0.108 (0.127) data 0.000 (0.023) loss 1.4924 (1.3526) ce_loss 0.4919 (0.3594) loss_zs_kd 0.0985 (0.0867) loss_oracle 0.1226 (0.1122) acc 78.1250 (86.9271) kd_loss 0.8900 (0.8937) lr 1.1874e-03 eta 0:09:23
+epoch [24/50] batch [80/167] time 0.093 (0.121) data 0.000 (0.017) loss 1.3148 (1.3412) ce_loss 0.2837 (0.3555) loss_zs_kd 0.0581 (0.0847) loss_oracle 0.1135 (0.1132) acc 87.5000 (86.8359) kd_loss 0.9453 (0.8867) lr 1.1874e-03 eta 0:08:55
+epoch [24/50] batch [100/167] time 0.101 (0.118) data 0.000 (0.014) loss 1.0586 (1.3359) ce_loss 0.1835 (0.3584) loss_zs_kd 0.0366 (0.0821) loss_oracle 0.0969 (0.1106) acc 90.6250 (86.7188) kd_loss 0.8084 (0.8811) lr 1.1874e-03 eta 0:08:39
+epoch [24/50] batch [120/167] time 0.099 (0.116) data 0.000 (0.012) loss 1.2785 (1.3319) ce_loss 0.3159 (0.3561) loss_zs_kd 0.0996 (0.0827) loss_oracle 0.1031 (0.1089) acc 90.6250 (86.6406) kd_loss 0.8612 (0.8800) lr 1.1874e-03 eta 0:08:27
+epoch [24/50] batch [140/167] time 0.100 (0.114) data 0.000 (0.010) loss 1.5431 (1.3348) ce_loss 0.5625 (0.3571) loss_zs_kd 0.1010 (0.0823) loss_oracle 0.1222 (0.1090) acc 84.3750 (86.7857) kd_loss 0.8690 (0.8820) lr 1.1874e-03 eta 0:08:17
+epoch [24/50] batch [160/167] time 0.091 (0.112) data 0.000 (0.009) loss 1.4275 (1.3321) ce_loss 0.4578 (0.3563) loss_zs_kd 0.0694 (0.0816) loss_oracle 0.0964 (0.1100) acc 84.3750 (86.6797) kd_loss 0.8869 (0.8800) lr 1.1874e-03 eta 0:08:08
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,212
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.7%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [25/50] batch [20/167] time 0.066 (0.163) data 0.000 (0.059) loss 1.1896 (1.3545) ce_loss 0.2467 (0.3680) loss_zs_kd 0.0531 (0.0780) loss_oracle 0.1118 (0.1159) acc 93.7500 (86.8750) kd_loss 0.8604 (0.8895) lr 1.1253e-03 eta 0:11:46
+epoch [25/50] batch [40/167] time 0.090 (0.138) data 0.000 (0.030) loss 1.1345 (1.3410) ce_loss 0.0998 (0.3477) loss_zs_kd 0.0517 (0.0750) loss_oracle 0.1242 (0.1146) acc 100.0000 (87.2656) kd_loss 0.9467 (0.8985) lr 1.1253e-03 eta 0:09:53
+epoch [25/50] batch [60/167] time 0.065 (0.119) data 0.000 (0.020) loss 1.3643 (1.3563) ce_loss 0.3735 (0.3616) loss_zs_kd 0.0633 (0.0754) loss_oracle 0.0923 (0.1115) acc 84.3750 (86.8750) kd_loss 0.9129 (0.9013) lr 1.1253e-03 eta 0:08:27
+epoch [25/50] batch [80/167] time 0.073 (0.106) data 0.000 (0.015) loss 1.3202 (1.3450) ce_loss 0.2510 (0.3533) loss_zs_kd 0.1233 (0.0759) loss_oracle 0.0896 (0.1097) acc 90.6250 (87.0703) kd_loss 0.9627 (0.8990) lr 1.1253e-03 eta 0:07:30
+epoch [25/50] batch [100/167] time 0.083 (0.102) data 0.000 (0.012) loss 1.4251 (1.3482) ce_loss 0.3821 (0.3545) loss_zs_kd 0.0904 (0.0767) loss_oracle 0.0905 (0.1062) acc 84.3750 (86.8438) kd_loss 0.9526 (0.9023) lr 1.1253e-03 eta 0:07:11
+epoch [25/50] batch [120/167] time 0.179 (0.102) data 0.000 (0.010) loss 1.3143 (1.3503) ce_loss 0.3386 (0.3585) loss_zs_kd 0.0778 (0.0794) loss_oracle 0.0832 (0.1054) acc 90.6250 (86.6667) kd_loss 0.8953 (0.8993) lr 1.1253e-03 eta 0:07:11
+epoch [25/50] batch [140/167] time 0.147 (0.106) data 0.000 (0.009) loss 1.1225 (1.3458) ce_loss 0.2625 (0.3563) loss_zs_kd 0.0647 (0.0811) loss_oracle 0.0931 (0.1042) acc 87.5000 (86.8080) kd_loss 0.7812 (0.8969) lr 1.1253e-03 eta 0:07:23
+epoch [25/50] batch [160/167] time 0.151 (0.106) data 0.000 (0.008) loss 1.3875 (1.3474) ce_loss 0.3850 (0.3603) loss_zs_kd 0.0692 (0.0802) loss_oracle 0.0909 (0.1032) acc 87.5000 (86.7188) kd_loss 0.9224 (0.8954) lr 1.1253e-03 eta 0:07:22
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,213
+* accuracy: 96.3%
+* error: 3.7%
+* macro_f1: 96.7%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,321
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [26/50] batch [20/167] time 0.098 (0.155) data 0.000 (0.053) loss 1.3303 (1.2962) ce_loss 0.2871 (0.3329) loss_zs_kd 0.0594 (0.0781) loss_oracle 0.1317 (0.1195) acc 87.5000 (87.8125) kd_loss 0.9476 (0.8645) lr 1.0628e-03 eta 0:10:42
+epoch [26/50] batch [40/167] time 0.106 (0.129) data 0.000 (0.027) loss 1.2680 (1.3092) ce_loss 0.3452 (0.3538) loss_zs_kd 0.0961 (0.0770) loss_oracle 0.1249 (0.1163) acc 81.2500 (87.4219) kd_loss 0.8122 (0.8588) lr 1.0628e-03 eta 0:08:51
+epoch [26/50] batch [60/167] time 0.104 (0.118) data 0.000 (0.018) loss 1.3696 (1.3270) ce_loss 0.3630 (0.3632) loss_zs_kd 0.0811 (0.0799) loss_oracle 0.1413 (0.1159) acc 84.3750 (87.0833) kd_loss 0.8954 (0.8660) lr 1.0628e-03 eta 0:08:07
+epoch [26/50] batch [80/167] time 0.103 (0.114) data 0.000 (0.013) loss 1.3193 (1.3320) ce_loss 0.3494 (0.3628) loss_zs_kd 0.0894 (0.0821) loss_oracle 0.1079 (0.1213) acc 87.5000 (86.8750) kd_loss 0.8712 (0.8675) lr 1.0628e-03 eta 0:07:47
+epoch [26/50] batch [100/167] time 0.100 (0.111) data 0.000 (0.011) loss 1.4456 (1.3346) ce_loss 0.4480 (0.3660) loss_zs_kd 0.0804 (0.0813) loss_oracle 0.1328 (0.1193) acc 84.3750 (86.7188) kd_loss 0.8910 (0.8683) lr 1.0628e-03 eta 0:07:32
+epoch [26/50] batch [120/167] time 0.099 (0.109) data 0.000 (0.009) loss 1.4592 (1.3362) ce_loss 0.4534 (0.3678) loss_zs_kd 0.0589 (0.0798) loss_oracle 0.1203 (0.1208) acc 81.2500 (86.8490) kd_loss 0.9162 (0.8681) lr 1.0628e-03 eta 0:07:22
+epoch [26/50] batch [140/167] time 0.098 (0.108) data 0.000 (0.008) loss 1.5433 (1.3303) ce_loss 0.4546 (0.3603) loss_zs_kd 0.1231 (0.0804) loss_oracle 0.1040 (0.1200) acc 84.3750 (87.2098) kd_loss 0.9751 (0.8698) lr 1.0628e-03 eta 0:07:14
+epoch [26/50] batch [160/167] time 0.093 (0.106) data 0.000 (0.007) loss 1.3687 (1.3349) ce_loss 0.3335 (0.3608) loss_zs_kd 0.1317 (0.0829) loss_oracle 0.1181 (0.1198) acc 90.6250 (87.1680) kd_loss 0.9103 (0.8727) lr 1.0628e-03 eta 0:07:07
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,210
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,320
+* accuracy: 99.0%
+* error: 1.0%
+* macro_f1: 99.1%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [27/50] batch [20/167] time 0.097 (0.172) data 0.000 (0.073) loss 1.4887 (1.3516) ce_loss 0.3989 (0.3380) loss_zs_kd 0.1833 (0.0946) loss_oracle 0.1117 (0.1164) acc 87.5000 (87.9688) kd_loss 0.9423 (0.9081) lr 1.0000e-03 eta 0:11:26
+epoch [27/50] batch [40/167] time 0.101 (0.134) data 0.000 (0.037) loss 1.1813 (1.3807) ce_loss 0.1545 (0.3599) loss_zs_kd 0.0837 (0.0907) loss_oracle 0.0891 (0.1095) acc 96.8750 (86.8750) kd_loss 0.9404 (0.9207) lr 1.0000e-03 eta 0:08:53
+epoch [27/50] batch [60/167] time 0.100 (0.123) data 0.000 (0.025) loss 1.4028 (1.3822) ce_loss 0.4062 (0.3691) loss_zs_kd 0.1165 (0.0860) loss_oracle 0.1010 (0.1062) acc 84.3750 (86.5625) kd_loss 0.8878 (0.9171) lr 1.0000e-03 eta 0:08:07
+epoch [27/50] batch [80/167] time 0.099 (0.118) data 0.000 (0.019) loss 1.0901 (1.3693) ce_loss 0.1360 (0.3581) loss_zs_kd 0.0862 (0.0862) loss_oracle 0.0865 (0.1083) acc 96.8750 (86.9531) kd_loss 0.8678 (0.9139) lr 1.0000e-03 eta 0:07:42
+epoch [27/50] batch [100/167] time 0.104 (0.114) data 0.000 (0.015) loss 1.0806 (1.3649) ce_loss 0.0547 (0.3585) loss_zs_kd 0.0752 (0.0855) loss_oracle 0.1440 (0.1081) acc 100.0000 (86.8750) kd_loss 0.9163 (0.9096) lr 1.0000e-03 eta 0:07:26
+epoch [27/50] batch [120/167] time 0.095 (0.112) data 0.000 (0.012) loss 1.1289 (1.3551) ce_loss 0.2059 (0.3525) loss_zs_kd 0.0590 (0.0877) loss_oracle 0.1272 (0.1094) acc 90.6250 (87.1094) kd_loss 0.8298 (0.9041) lr 1.0000e-03 eta 0:07:15
+epoch [27/50] batch [140/167] time 0.088 (0.109) data 0.000 (0.011) loss 1.1322 (1.3540) ce_loss 0.2185 (0.3518) loss_zs_kd 0.0929 (0.0863) loss_oracle 0.1029 (0.1098) acc 96.8750 (87.1652) kd_loss 0.8157 (0.9041) lr 1.0000e-03 eta 0:07:02
+epoch [27/50] batch [160/167] time 0.071 (0.106) data 0.000 (0.009) loss 1.1691 (1.3536) ce_loss 0.2418 (0.3530) loss_zs_kd 0.0739 (0.0843) loss_oracle 0.1301 (0.1108) acc 93.7500 (87.1484) kd_loss 0.8254 (0.9031) lr 1.0000e-03 eta 0:06:46
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,210
+* accuracy: 96.2%
+* error: 3.8%
+* macro_f1: 96.6%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,319
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [28/50] batch [20/167] time 0.068 (0.173) data 0.000 (0.070) loss 1.3874 (1.3528) ce_loss 0.3784 (0.3494) loss_zs_kd 0.0593 (0.0752) loss_oracle 0.0965 (0.1138) acc 84.3750 (87.5000) kd_loss 0.9310 (0.9089) lr 9.3721e-04 eta 0:11:01
+epoch [28/50] batch [40/167] time 0.093 (0.129) data 0.000 (0.035) loss 1.3726 (1.3604) ce_loss 0.3567 (0.3513) loss_zs_kd 0.0686 (0.0794) loss_oracle 0.1490 (0.1129) acc 84.3750 (87.2656) kd_loss 0.9071 (0.9130) lr 9.3721e-04 eta 0:08:09
+epoch [28/50] batch [60/167] time 0.079 (0.112) data 0.000 (0.024) loss 1.2698 (1.3527) ce_loss 0.3694 (0.3491) loss_zs_kd 0.0451 (0.0800) loss_oracle 0.0740 (0.1128) acc 84.3750 (87.2917) kd_loss 0.8409 (0.9072) lr 9.3721e-04 eta 0:07:04
+epoch [28/50] batch [80/167] time 0.092 (0.106) data 0.000 (0.018) loss 1.4098 (1.3504) ce_loss 0.3567 (0.3524) loss_zs_kd 0.1026 (0.0813) loss_oracle 0.1237 (0.1140) acc 87.5000 (87.0703) kd_loss 0.9400 (0.9004) lr 9.3721e-04 eta 0:06:38
+epoch [28/50] batch [100/167] time 0.070 (0.106) data 0.000 (0.014) loss 1.2807 (1.3410) ce_loss 0.3516 (0.3446) loss_zs_kd 0.0762 (0.0818) loss_oracle 0.1027 (0.1133) acc 90.6250 (87.6250) kd_loss 0.8397 (0.8988) lr 9.3721e-04 eta 0:06:35
+epoch [28/50] batch [120/167] time 0.069 (0.103) data 0.000 (0.012) loss 1.2959 (1.3516) ce_loss 0.3535 (0.3531) loss_zs_kd 0.0632 (0.0833) loss_oracle 0.1151 (0.1148) acc 84.3750 (87.2917) kd_loss 0.8532 (0.8995) lr 9.3721e-04 eta 0:06:22
+epoch [28/50] batch [140/167] time 0.159 (0.103) data 0.000 (0.010) loss 1.3719 (1.3432) ce_loss 0.3777 (0.3477) loss_zs_kd 0.0952 (0.0837) loss_oracle 0.1227 (0.1153) acc 81.2500 (87.3661) kd_loss 0.8853 (0.8959) lr 9.3721e-04 eta 0:06:22
+epoch [28/50] batch [160/167] time 0.063 (0.103) data 0.000 (0.009) loss 1.4418 (1.3406) ce_loss 0.3950 (0.3475) loss_zs_kd 0.0691 (0.0833) loss_oracle 0.1349 (0.1151) acc 90.6250 (87.3047) kd_loss 0.9448 (0.8939) lr 9.3721e-04 eta 0:06:17
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,214
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,318
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [29/50] batch [20/167] time 0.100 (0.186) data 0.000 (0.082) loss 1.2688 (1.3289) ce_loss 0.3423 (0.3581) loss_zs_kd 0.0726 (0.0871) loss_oracle 0.1046 (0.1060) acc 84.3750 (87.0312) kd_loss 0.8379 (0.8743) lr 8.7467e-04 eta 0:11:19
+epoch [29/50] batch [40/167] time 0.100 (0.143) data 0.000 (0.041) loss 1.4251 (1.3097) ce_loss 0.4502 (0.3431) loss_zs_kd 0.0993 (0.0856) loss_oracle 0.0739 (0.1059) acc 78.1250 (87.2656) kd_loss 0.8883 (0.8709) lr 8.7467e-04 eta 0:08:40
+epoch [29/50] batch [60/167] time 0.107 (0.130) data 0.000 (0.028) loss 1.4800 (1.3224) ce_loss 0.4465 (0.3507) loss_zs_kd 0.0776 (0.0826) loss_oracle 0.0990 (0.1028) acc 81.2500 (87.1354) kd_loss 0.9452 (0.8790) lr 8.7467e-04 eta 0:07:48
+epoch [29/50] batch [80/167] time 0.097 (0.122) data 0.000 (0.021) loss 1.0764 (1.3183) ce_loss 0.1339 (0.3468) loss_zs_kd 0.0363 (0.0795) loss_oracle 0.0898 (0.1028) acc 96.8750 (87.4609) kd_loss 0.8794 (0.8803) lr 8.7467e-04 eta 0:07:19
+epoch [29/50] batch [100/167] time 0.112 (0.118) data 0.000 (0.017) loss 1.5567 (1.3266) ce_loss 0.5967 (0.3516) loss_zs_kd 0.1143 (0.0785) loss_oracle 0.1076 (0.1016) acc 78.1250 (87.4688) kd_loss 0.8490 (0.8849) lr 8.7467e-04 eta 0:07:02
+epoch [29/50] batch [120/167] time 0.097 (0.115) data 0.000 (0.014) loss 1.4050 (1.3315) ce_loss 0.3574 (0.3517) loss_zs_kd 0.1306 (0.0806) loss_oracle 0.1253 (0.1042) acc 87.5000 (87.3438) kd_loss 0.9196 (0.8874) lr 8.7467e-04 eta 0:06:49
+epoch [29/50] batch [140/167] time 0.106 (0.113) data 0.000 (0.012) loss 1.3298 (1.3416) ce_loss 0.3657 (0.3550) loss_zs_kd 0.0606 (0.0811) loss_oracle 0.1286 (0.1068) acc 87.5000 (87.2768) kd_loss 0.8695 (0.8926) lr 8.7467e-04 eta 0:06:40
+epoch [29/50] batch [160/167] time 0.088 (0.111) data 0.000 (0.010) loss 1.2385 (1.3498) ce_loss 0.2441 (0.3589) loss_zs_kd 0.0697 (0.0815) loss_oracle 0.1028 (0.1079) acc 93.7500 (87.1484) kd_loss 0.9081 (0.8962) lr 8.7467e-04 eta 0:06:30
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,214
+* accuracy: 96.4%
+* error: 3.6%
+* macro_f1: 96.8%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,318
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [30/50] batch [20/167] time 0.087 (0.181) data 0.000 (0.079) loss 1.2534 (1.4138) ce_loss 0.2239 (0.3731) loss_zs_kd 0.0745 (0.0823) loss_oracle 0.1111 (0.1189) acc 90.6250 (86.2500) kd_loss 0.9368 (0.9401) lr 8.1262e-04 eta 0:10:32
+epoch [30/50] batch [40/167] time 0.090 (0.139) data 0.000 (0.040) loss 1.4497 (1.4091) ce_loss 0.4265 (0.3708) loss_zs_kd 0.1098 (0.0856) loss_oracle 0.1154 (0.1196) acc 87.5000 (85.8594) kd_loss 0.9105 (0.9357) lr 8.1262e-04 eta 0:08:03
+epoch [30/50] batch [60/167] time 0.101 (0.125) data 0.000 (0.027) loss 1.3628 (1.4008) ce_loss 0.3047 (0.3615) loss_zs_kd 0.0908 (0.0888) loss_oracle 0.1644 (0.1242) acc 93.7500 (86.7708) kd_loss 0.9305 (0.9328) lr 8.1262e-04 eta 0:07:09
+epoch [30/50] batch [80/167] time 0.097 (0.118) data 0.000 (0.020) loss 1.4359 (1.4023) ce_loss 0.4507 (0.3675) loss_zs_kd 0.1276 (0.0888) loss_oracle 0.0993 (0.1241) acc 84.3750 (86.2500) kd_loss 0.8718 (0.9283) lr 8.1262e-04 eta 0:06:44
+epoch [30/50] batch [100/167] time 0.090 (0.111) data 0.000 (0.016) loss 1.3775 (1.4055) ce_loss 0.3486 (0.3723) loss_zs_kd 0.0858 (0.0865) loss_oracle 0.0829 (0.1231) acc 87.5000 (85.9375) kd_loss 0.9445 (0.9283) lr 8.1262e-04 eta 0:06:19
+epoch [30/50] batch [120/167] time 0.088 (0.107) data 0.000 (0.013) loss 1.5085 (1.4053) ce_loss 0.4919 (0.3775) loss_zs_kd 0.0922 (0.0858) loss_oracle 0.0742 (0.1203) acc 81.2500 (85.8594) kd_loss 0.9333 (0.9248) lr 8.1262e-04 eta 0:06:03
+epoch [30/50] batch [140/167] time 0.078 (0.104) data 0.000 (0.012) loss 1.3339 (1.4034) ce_loss 0.3298 (0.3800) loss_zs_kd 0.1453 (0.0842) loss_oracle 0.1413 (0.1177) acc 87.5000 (85.8482) kd_loss 0.8608 (0.9224) lr 8.1262e-04 eta 0:05:49
+epoch [30/50] batch [160/167] time 0.070 (0.103) data 0.000 (0.010) loss 1.4671 (1.3918) ce_loss 0.4106 (0.3758) loss_zs_kd 0.0735 (0.0827) loss_oracle 0.1072 (0.1155) acc 84.3750 (86.0352) kd_loss 0.9661 (0.9169) lr 8.1262e-04 eta 0:05:44
+Evaluate on the *val* set
+=> result
+* total: 2,297
+* correct: 2,206
+* accuracy: 96.0%
+* error: 4.0%
+* macro_f1: 96.5%
+Evaluate on the *test* set
+=> result
+* total: 2,344
+* correct: 2,318
+* accuracy: 98.9%
+* error: 1.1%
+* macro_f1: 99.0%
+******* Domain c best val acc:      96.5%, epoch: 10 *******
+******* Domain c best val test acc: 98.9%, epoch: 10 *******
+******* Domain c best test acc:     99.3%, epoch: 1 *******
+epoch [31/50] batch [20/167] time 0.081 (0.171) data 0.000 (0.087) loss 1.1099 (1.3132) ce_loss 0.2013 (0.3386) loss_zs_kd 0.0756 (0.0720) loss_oracle 0.1109 (0.1155) acc 93.7500 (86.7188) kd_loss 0.8153 (0.8808) lr 7.5131e-04 eta 0:09:27
+epoch [31/50] batch [40/167] time 0.071 (0.135) data 0.000 (0.044) loss 1.3629 (1.3294) ce_loss 0.3699 (0.3462) loss_zs_kd 0.1077 (0.0747) loss_oracle 0.0911 (0.1131) acc 90.6250 (87.1094) kd_loss 0.8936 (0.8893) lr 7.5131e-04 eta 0:07:27
+epoch [31/50] batch [60/167] time 0.146 (0.129) data 0.000 (0.029) loss 1.2891 (1.3340) ce_loss 0.1705 (0.3385) loss_zs_kd 0.0729 (0.0827) loss_oracle 0.1206 (0.1141) acc 93.7500 (87.3958) kd_loss 1.0218 (0.8972) lr 7.5131e-04 eta 0:07:02
+epoch [31/50] batch [80/167] time 0.165 (0.129) data 0.000 (0.022) loss 1.2185 (1.3411) ce_loss 0.1633 (0.3371) loss_zs_kd 0.0887 (0.0834) loss_oracle 0.1749 (0.1203) acc 96.8750 (87.3828) kd_loss 0.9234 (0.9021) lr 7.5131e-04 eta 0:06:59
+epoch [31/50] batch [100/167] time 0.079 (0.120) data 0.000 (0.018) loss 1.1284 (1.3367) ce_loss 0.1263 (0.3293) loss_zs_kd 0.0533 (0.0836) loss_oracle 0.1422 (0.1233) acc 96.8750 (87.9688) kd_loss 0.9043 (0.9040) lr 7.5131e-04 eta 0:06:29
+epoch [31/50] batch [120/167] time 0.100 (0.115) data 0.000 (0.015) loss 1.2321 (1.3479) ce_loss 0.2103 (0.3388) loss_zs_kd 0.0542 (0.0821) loss_oracle 0.1066 (0.1241) acc 93.7500 (87.5781) kd_loss 0.9413 (0.9060) lr 7.5131e-04 eta 0:06:10
+epoch [31/50] batch [140/167] time 0.112 (0.114) data 0.000 (0.013) loss 1.5260 (1.3579) ce_loss 0.4897 (0.3460) loss_zs_kd 0.0847 (0.0839) loss_oracle 0.1218 (0.1237) acc 78.1250 (87.2768) kd_loss 0.9330 (0.9081) lr 7.5131e-04 eta 0:06:03
+epoch [31/50] batch [160/167] time 0.097 (0.112) data 0.000 (0.011) loss 1.5663 (1.3604) ce_loss 0.4277 (0.3461) loss_zs_kd 0.0870 (0.0842) loss_oracle 0.1682 (0.1238) acc 87.5000 (87.0898) kd_loss 1.0110 (0.9103) lr 7.5131e-04 eta 0:05:56
+Evaluate on the *val* set

@@ -1,0 +1,23 @@
+Method Name,Dataset Name,Domain Index,Best Test Acc (%),Epoch,Log File Path
+TRIP,pacs,p,99.9,1,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/p/seed_1/warmup_1/log.txt
+TRIP,pacs,a,98.2,9,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+TRIP,pacs,s,90.4,3,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+TRIP,pacs,c,99.3,1,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/pacs/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt
+TRIP,vlcs,p,88.6,8,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/vlcs/b32_ep50/ViT-B16/p/seed_1/warmup_1/log.txt
+TRIP,vlcs,s,81.7,4,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/vlcs/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+TRIP,vlcs,c,100.0,1,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/vlcs/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt
+TRIP,vlcs,l,68.9,1,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/vlcs/b32_ep50/ViT-B16/l/seed_1/warmup_1/log.txt
+TRIP,office_home,r,91.3,8,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/office_home/b32_ep50/ViT-B16/r/seed_1/warmup_1/log.txt
+TRIP,office_home,p,91.4,19,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/office_home/b32_ep50/ViT-B16/p/seed_1/warmup_1/log.txt
+TRIP,office_home,a,84.2,8,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/log.txt
+TRIP,office_home,c,74.6,28,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/office_home/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt
+TRIP,domainnet,r,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/r/seed_1/warmup_1/log.txt
+TRIP,domainnet,p,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/p/seed_1/warmup_1/log.txt
+TRIP,domainnet,q,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/q/seed_1/warmup_1/log.txt
+TRIP,domainnet,s,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/s/seed_1/warmup_1/log.txt
+TRIP,domainnet,i,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/i/seed_1/warmup_1/log.txt
+TRIP,domainnet,c,N/A,N/A,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/domainnet/b32_ep50/ViT-B16/c/seed_1/warmup_1/log.txt
+TRIP,terra_incognita,4,43.2,27,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/terra_incognita/b32_ep50/ViT-B16/4/seed_1/warmup_1/log.txt
+TRIP,terra_incognita,3,46.8,26,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/terra_incognita/b32_ep50/ViT-B16/3/seed_1/warmup_1/log.txt
+TRIP,terra_incognita,2,52.8,27,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/terra_incognita/b32_ep50/ViT-B16/2/seed_1/warmup_1/log.txt
+TRIP,terra_incognita,1,57.5,19,/workspace/Soft-Prompt-Generation/icml/multi-dg/TRIP/terra_incognita/b32_ep50/ViT-B16/1/seed_1/warmup_1/log.txt
