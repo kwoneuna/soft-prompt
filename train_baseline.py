@@ -196,7 +196,10 @@ def extend_cfg(cfg):
         cfg.TRAINER.TRIP.CSC = False        # class-specific context
         cfg.TRAINER.TRIP.CTX_INIT = "a photo of a"      # initialization words
         cfg.TRAINER.TRIP.CLASS_TOKEN_POSITION = "end"  # 'middle' or 'end' or 'front'
-        
+        cfg.OPTIM.NAME = "AdamW"
+        cfg.OPTIM.LR = 5e-5
+        cfg.OPTIM.WEIGHT_DECAY = 0.01
+
     elif args.trainer == 'CoCoOp':
         cfg.TRAINER.COCOOP = CN()
         cfg.TRAINER.COCOOP.PREC = "fp16"    # fp16, fp32, amp

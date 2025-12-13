@@ -1,0 +1,20 @@
+{
+    "backbone": "ViT-B/16",
+    "num_prompts": 3,
+    "proj_dim": 512,
+    "tau_gate": 1.0,
+    "tau_zs": 1.0,
+    "var_eps": 1e-05,
+    "min_var": 1e-06,
+    "alpha_pbeb": 0.2,
+    "beta_var": 0.5,
+    "bootstrap_ratio": 0.7,
+    "lambda_oracle": 0.5,
+    "lambda_zs_kd": 0.0,
+    "lambda_kd": 0.5,
+    "prec": "fp16",
+    "batch_size": 32,
+    "lr": 0.002,
+    "tau_oracle": 0.1,
+    "alpha_oracle_mix": 0.5
+}

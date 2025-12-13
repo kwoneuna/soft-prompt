@@ -1,0 +1,75 @@
+Loading trainer: TRIP
+Loading dataset: SPG_OfficeHome
+Building transform_train
++ random resized crop (size=(224, 224), scale=(0.08, 1.0))
++ random flip
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+Building transform_test
++ resize the smaller edge to 224
++ 224x224 center crop
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+---------  --------------------------------
+Dataset    SPG_OfficeHome
+Source     ['art', 'clipart', 'real_world']
+Target     ['product']
+# classes  65
+# train_x  7,815
+# val      3,334
+# test     4,439
+---------  --------------------------------
+Loading CLIP (backbone: ViT-B/16)
+Building custom CLIP
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Turning off gradients in both the image and the text encoder
+=== Trainable Parameters by Module ===
+prompt_learner.0.ctx                               2,048
+prompt_learner.1.ctx                               2,048
+prompt_learner.2.ctx                               2,048
+gate.mlp.0.weight                                  65,536
+gate.mlp.0.bias                                    128
+gate.mlp.2.weight                                  384
+gate.mlp.2.bias                                    3
+Total trainable params: 72,195
+[Info] Hyperparameters saved to: icml/multi-dg/tuning/20_ema_teacherupdate_for_office/TRIP/office_home/b32_ep50/ViT-B16/p/seed_1/warmup_1/hyperparameters.json
+Loading evaluator: Classification
+No checkpoint found, train from scratch
+Initialize tensorboard (log_dir=icml/multi-dg/tuning/20_ema_teacherupdate_for_office/TRIP/office_home/b32_ep50/ViT-B16/p/seed_1/warmup_1/tensorboard)
+epoch [1/50] batch [20/244] time 0.106 (0.132) data 0.000 (0.022) loss 1.4372 (1.4414) teacher_loss 1.4286 (1.4246) loss_zs_kd 0.0000 (0.0000) loss_oracle -0.0001 (-0.0001) kd_loss 0.0173 (0.0338) acc 62.5000 (65.0000) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3348 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0813 (1.0648) teacher/usage_max 0.3489 (0.3519) teacher/usage_min 0.3197 (0.3186) teacher/usage_std 0.0120 (0.0147) nleep/row_max_mean 1152.6626 (1159.2144) nleep/row_max_std 48.7189 (67.0125) nleep/row_min_mean 1152.4353 (1158.7290) lr 1.0000e-05 eta 0:26:49
+epoch [1/50] batch [40/244] time 0.098 (0.119) data 0.000 (0.011) loss 1.4997 (1.4078) teacher_loss 1.4976 (1.3940) loss_zs_kd 0.0001 (0.0000) loss_oracle -0.0001 (-0.0001) kd_loss 0.0045 (0.0278) acc 56.2500 (65.2344) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3313 (0.3314) gate/usage_std 0.0015 (0.0015) teacher/entropy 1.0941 (1.0709) teacher/usage_max 0.3389 (0.3522) teacher/usage_min 0.3281 (0.3191) teacher/usage_std 0.0044 (0.0145) nleep/row_max_mean 1153.4545 (1161.3941) nleep/row_max_std 8.8329 (60.7091) nleep/row_min_mean 1153.2700 (1160.9991) lr 1.0000e-05 eta 0:24:02
+epoch [1/50] batch [60/244] time 0.102 (0.112) data 0.001 (0.008) loss 1.3217 (1.4389) teacher_loss 1.3184 (1.4277) loss_zs_kd 0.0001 (0.0001) loss_oracle -0.0000 (-0.0001) kd_loss 0.0065 (0.0224) acc 65.6250 (64.0104) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3347 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0921 (1.0762) teacher/usage_max 0.3402 (0.3498) teacher/usage_min 0.3289 (0.3209) teacher/usage_std 0.0049 (0.0126) nleep/row_max_mean 1166.8646 (1162.6621) nleep/row_max_std 44.2516 (56.7006) nleep/row_min_mean 1166.7058 (1162.3260) lr 1.0000e-05 eta 0:22:43
+epoch [1/50] batch [80/244] time 0.098 (0.109) data 0.000 (0.006) loss 1.5634 (1.4437) teacher_loss 1.5624 (1.4336) loss_zs_kd 0.0003 (0.0001) loss_oracle -0.0000 (-0.0001) kd_loss 0.0021 (0.0203) acc 59.3750 (63.9453) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3347 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0966 (1.0784) teacher/usage_max 0.3359 (0.3486) teacher/usage_min 0.3303 (0.3213) teacher/usage_std 0.0023 (0.0118) nleep/row_max_mean 1157.6449 (1163.9523) nleep/row_max_std 7.6534 (53.1580) nleep/row_min_mean 1157.5271 (1163.6456) lr 1.0000e-05 eta 0:22:05
+epoch [1/50] batch [100/244] time 0.102 (0.109) data 0.000 (0.005) loss 1.5647 (1.4233) teacher_loss 1.5570 (1.4142) loss_zs_kd 0.0006 (0.0002) loss_oracle -0.0000 (-0.0001) kd_loss 0.0154 (0.0183) acc 62.5000 (64.1250) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0015 (0.0015) teacher/entropy 1.0832 (1.0803) teacher/usage_max 0.3481 (0.3478) teacher/usage_min 0.3191 (0.3217) teacher/usage_std 0.0118 (0.0112) nleep/row_max_mean 1180.3440 (1165.8628) nleep/row_max_std 58.3291 (51.4386) nleep/row_min_mean 1180.0795 (1165.5796) lr 1.0000e-05 eta 0:21:56
+epoch [1/50] batch [120/244] time 0.094 (0.108) data 0.000 (0.004) loss 0.9586 (1.4081) teacher_loss 0.9573 (1.3999) loss_zs_kd 0.0005 (0.0002) loss_oracle 0.0000 (-0.0001) kd_loss 0.0025 (0.0165) acc 75.0000 (64.5052) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3313 (0.3314) gate/usage_std 0.0015 (0.0015) teacher/entropy 1.0962 (1.0821) teacher/usage_max 0.3395 (0.3468) teacher/usage_min 0.3253 (0.3222) teacher/usage_std 0.0060 (0.0105) nleep/row_max_mean 1183.6014 (1167.2552) nleep/row_max_std 49.4198 (49.0801) nleep/row_min_mean 1183.4785 (1166.9927) lr 1.0000e-05 eta 0:21:40
+epoch [1/50] batch [140/244] time 0.105 (0.108) data 0.000 (0.003) loss 1.0929 (1.3889) teacher_loss 1.0919 (1.3812) loss_zs_kd 0.0008 (0.0003) loss_oracle -0.0000 (-0.0001) kd_loss 0.0020 (0.0153) acc 75.0000 (64.9554) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3348 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0967 (1.0833) teacher/usage_max 0.3382 (0.3462) teacher/usage_min 0.3295 (0.3224) teacher/usage_std 0.0036 (0.0102) nleep/row_max_mean 1167.4756 (1168.5078) nleep/row_max_std 9.1000 (46.7995) nleep/row_min_mean 1167.3561 (1168.2598) lr 1.0000e-05 eta 0:21:38
+epoch [1/50] batch [160/244] time 0.101 (0.107) data 0.000 (0.003) loss 1.4828 (1.3798) teacher_loss 1.4822 (1.3728) loss_zs_kd 0.0017 (0.0004) loss_oracle -0.0000 (-0.0000) kd_loss 0.0011 (0.0141) acc 56.2500 (65.0781) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0975 (1.0846) teacher/usage_max 0.3356 (0.3454) teacher/usage_min 0.3316 (0.3228) teacher/usage_std 0.0017 (0.0097) nleep/row_max_mean 1170.2821 (1169.5797) nleep/row_max_std 10.8367 (44.4518) nleep/row_min_mean 1170.1958 (1169.3452) lr 1.0000e-05 eta 0:21:29
+epoch [1/50] batch [180/244] time 0.104 (0.107) data 0.000 (0.003) loss 0.9838 (1.3786) teacher_loss 0.9827 (1.3721) loss_zs_kd 0.0011 (0.0005) loss_oracle 0.0000 (-0.0000) kd_loss 0.0023 (0.0130) acc 81.2500 (65.1562) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0964 (1.0857) teacher/usage_max 0.3364 (0.3447) teacher/usage_min 0.3298 (0.3233) teacher/usage_std 0.0027 (0.0091) nleep/row_max_mean 1177.4713 (1170.4345) nleep/row_max_std 22.5358 (42.1887) nleep/row_min_mean 1177.3657 (1170.2120) lr 1.0000e-05 eta 0:21:23
+epoch [1/50] batch [200/244] time 0.116 (0.107) data 0.000 (0.002) loss 1.4900 (1.3774) teacher_loss 1.4862 (1.3712) loss_zs_kd 0.0014 (0.0007) loss_oracle 0.0000 (-0.0000) kd_loss 0.0075 (0.0125) acc 62.5000 (65.2344) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3348 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0015 (0.0015) teacher/entropy 1.0911 (1.0862) teacher/usage_max 0.3441 (0.3444) teacher/usage_min 0.3250 (0.3234) teacher/usage_std 0.0080 (0.0089) nleep/row_max_mean 1181.4471 (1171.7379) nleep/row_max_std 24.8548 (40.9739) nleep/row_min_mean 1181.2778 (1171.5219) lr 1.0000e-05 eta 0:21:26
+epoch [1/50] batch [220/244] time 0.100 (0.107) data 0.000 (0.002) loss 1.2203 (1.3736) teacher_loss 1.2197 (1.3677) loss_zs_kd 0.0073 (0.0009) loss_oracle 0.0000 (-0.0000) kd_loss 0.0012 (0.0118) acc 68.7500 (65.2415) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0015 (0.0015) teacher/entropy 1.0974 (1.0869) teacher/usage_max 0.3364 (0.3441) teacher/usage_min 0.3301 (0.3236) teacher/usage_std 0.0025 (0.0087) nleep/row_max_mean 1200.0415 (1173.0646) nleep/row_max_std 43.8194 (39.8244) nleep/row_min_mean 1199.9431 (1172.8564) lr 1.0000e-05 eta 0:21:17
+epoch [1/50] batch [240/244] time 0.100 (0.106) data 0.000 (0.002) loss 1.3154 (1.3697) teacher_loss 1.3127 (1.3642) loss_zs_kd 0.0019 (0.0010) loss_oracle -0.0000 (-0.0000) kd_loss 0.0054 (0.0110) acc 75.0000 (65.4297) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3349 (0.3349) gate/usage_min 0.3314 (0.3314) gate/usage_std 0.0014 (0.0015) teacher/entropy 1.0933 (1.0876) teacher/usage_max 0.3420 (0.3436) teacher/usage_min 0.3203 (0.3239) teacher/usage_std 0.0094 (0.0084) nleep/row_max_mean 1183.9883 (1173.9110) nleep/row_max_std 25.6649 (38.2711) nleep/row_min_mean 1183.8352 (1173.7109) lr 1.0000e-05 eta 0:21:07
+Evaluate on the *val* set
+=> result
+* total: 3,334
+* correct: 2,677
+* accuracy: 80.3%
+* error: 19.7%
+* macro_f1: 78.8%
+Checkpoint saved to icml/multi-dg/tuning/20_ema_teacherupdate_for_office/TRIP/office_home/b32_ep50/ViT-B16/p/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 4,439
+* correct: 3,946
+* accuracy: 88.9%
+* error: 11.1%
+* macro_f1: 88.0%
+Checkpoint saved to icml/multi-dg/tuning/20_ema_teacherupdate_for_office/TRIP/office_home/b32_ep50/ViT-B16/p/seed_1/warmup_1/prompt_learner/model-best-test.pth.tar
+******* Domain p best val acc:      80.3%, epoch: 1 *******
+******* Domain p best val test acc: 88.9%, epoch: 1 *******
+******* Domain p best test acc:     88.9%, epoch: 1 *******
+epoch [2/50] batch [20/244] time 0.108 (0.128) data 0.000 (0.019) loss 1.0041 (1.3630) teacher_loss 0.9971 (1.3581) loss_zs_kd 0.1603 (0.1271) loss_oracle 0.0076 (0.0047) kd_loss 0.0063 (0.0051) acc 75.0000 (65.3125) gate/entropy 1.0986 (1.0986) gate/usage_max 0.3347 (0.3349) gate/usage_min 0.3315 (0.3314) gate/usage_std 0.0013 (0.0014) teacher/entropy 1.0924 (1.0936) teacher/usage_max 0.3468 (0.3427) teacher/usage_min 0.3204 (0.3240) teacher/usage_std 0.0108 (0.0079) nleep/row_max_mean 1189.7805 (1187.9396) nleep/row_max_std 24.6099 (24.1897) nleep/row_min_mean 1189.6346 (1187.8062) lr 2.0000e-03 eta 0:25:28

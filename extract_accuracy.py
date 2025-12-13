@@ -23,7 +23,7 @@ def extract_log_info(base_path, log_file_path):
 
         if len(log_parts) >= 2:
             method_name = log_parts[0]  # 예: Dual
-            dataset_name = log_parts[1] # 예: vlcs, terra_incognita
+            dataset_name = log_parts[2] # 예: vlcs, terra_incognita
 
         try:
             vit_index = log_parts.index('ViT-B16')
@@ -76,7 +76,7 @@ def extract_log_info(base_path, log_file_path):
         "Log File Path": log_file_path
     }
 
-def find_and_process_logs(base_path, output_csv_filename="icml.csv"):
+def find_and_process_logs(base_path, output_csv_filename="icml2.csv"):
     """
     기준 경로에서 모든 log.txt 파일을 찾아 정보를 추출하고 CSV로 저장합니다.
     기존 파일이 있으면 데이터를 추가(append)합니다.
@@ -116,7 +116,7 @@ def find_and_process_logs(base_path, output_csv_filename="icml.csv"):
 
 # --- 스크립트 실행 ---
 
-BASE_SEARCH_PATH = "/workspace/Soft-Prompt-Generation/icml/multi-dg"
+BASE_SEARCH_PATH = "/workspace/Soft-Prompt-Generation/icml/multi-dg/tuning/"
 
 if not os.path.isdir(BASE_SEARCH_PATH):
     print(f"🚨 오류: 기준 경로가 존재하지 않습니다: {BASE_SEARCH_PATH}")

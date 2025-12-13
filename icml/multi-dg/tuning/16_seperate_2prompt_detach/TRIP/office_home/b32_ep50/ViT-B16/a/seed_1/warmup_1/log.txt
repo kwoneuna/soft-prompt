@@ -1,0 +1,171 @@
+Loading trainer: TRIP
+Loading dataset: SPG_OfficeHome
+Building transform_train
++ random resized crop (size=(224, 224), scale=(0.08, 1.0))
++ random flip
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+Building transform_test
++ resize the smaller edge to 224
++ 224x224 center crop
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+---------  ------------------------------------
+Dataset    SPG_OfficeHome
+Source     ['clipart', 'product', 'real_world']
+Target     ['art']
+# classes  65
+# train_x  9,222
+# val      3,939
+# test     2,427
+---------  ------------------------------------
+Loading CLIP (backbone: ViT-B/16)
+Building custom CLIP
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Turning off gradients in both the image and the text encoder
+=== Trainable Parameters by Module ===
+alpha_logit                                        1
+prompt_learner.0.ctx                               2,048
+prompt_learner.1.ctx                               2,048
+gate.mlp.0.weight                                  65,536
+gate.mlp.0.bias                                    128
+gate.mlp.2.weight                                  256
+gate.mlp.2.bias                                    2
+Total trainable params: 70,019
+[Info] Hyperparameters saved to: icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/hyperparameters.json
+Loading evaluator: Classification
+No checkpoint found, train from scratch
+Initialize tensorboard (log_dir=icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/tensorboard)
+epoch [1/50] batch [20/288] time 0.391 (0.266) data 0.000 (0.018) loss 1.7229 (1.5338) teacher_loss 1.5280 (1.2950) loss_zs_kd 0.0000 (0.0000) loss_oracle 0.0013 (0.0017) acc 56.2500 (66.2500) lr 1.0000e-05 eta 1:03:43
+epoch [1/50] batch [40/288] time 0.153 (0.190) data 0.000 (0.009) loss 1.1510 (1.4922) teacher_loss 1.0177 (1.2660) loss_zs_kd 0.0001 (0.0001) loss_oracle 0.0033 (0.0025) acc 71.8750 (66.6406) lr 1.0000e-05 eta 0:45:24
+epoch [1/50] batch [60/288] time 0.153 (0.176) data 0.000 (0.006) loss 1.2294 (1.4920) teacher_loss 1.0078 (1.2607) loss_zs_kd 0.0004 (0.0002) loss_oracle 0.0073 (0.0036) acc 68.7500 (67.2396) lr 1.0000e-05 eta 0:42:10
+epoch [1/50] batch [80/288] time 0.149 (0.170) data 0.000 (0.005) loss 1.7303 (1.4615) teacher_loss 1.5150 (1.2339) loss_zs_kd 0.0005 (0.0003) loss_oracle 0.0164 (0.0056) acc 68.7500 (68.0859) lr 1.0000e-05 eta 0:40:36
+epoch [1/50] batch [100/288] time 0.147 (0.166) data 0.000 (0.004) loss 1.7500 (1.4425) teacher_loss 1.4170 (1.2121) loss_zs_kd 0.0020 (0.0005) loss_oracle 0.0123 (0.0068) acc 68.7500 (68.5312) lr 1.0000e-05 eta 0:39:28
+epoch [1/50] batch [120/288] time 0.149 (0.163) data 0.000 (0.003) loss 1.5127 (1.4634) teacher_loss 1.3728 (1.2300) loss_zs_kd 0.0024 (0.0008) loss_oracle 0.0150 (0.0079) acc 59.3750 (68.1771) lr 1.0000e-05 eta 0:38:41
+epoch [1/50] batch [140/288] time 0.146 (0.160) data 0.000 (0.003) loss 1.3936 (1.4464) teacher_loss 1.1672 (1.2139) loss_zs_kd 0.0019 (0.0011) loss_oracle 0.0108 (0.0091) acc 68.7500 (68.6161) lr 1.0000e-05 eta 0:38:06
+epoch [1/50] batch [160/288] time 0.154 (0.159) data 0.000 (0.002) loss 1.2595 (1.4438) teacher_loss 0.9419 (1.2123) loss_zs_kd 0.0028 (0.0014) loss_oracle 0.0222 (0.0102) acc 78.1250 (68.8086) lr 1.0000e-05 eta 0:37:40
+epoch [1/50] batch [180/288] time 0.147 (0.158) data 0.000 (0.002) loss 1.5764 (1.4398) teacher_loss 1.2998 (1.2058) loss_zs_kd 0.0034 (0.0017) loss_oracle 0.0126 (0.0109) acc 65.6250 (68.7847) lr 1.0000e-05 eta 0:37:20
+epoch [1/50] batch [200/288] time 0.146 (0.156) data 0.000 (0.002) loss 1.3197 (1.4372) teacher_loss 1.0014 (1.2009) loss_zs_kd 0.0047 (0.0020) loss_oracle 0.0208 (0.0111) acc 78.1250 (69.0000) lr 1.0000e-05 eta 0:37:01
+epoch [1/50] batch [220/288] time 0.147 (0.156) data 0.000 (0.002) loss 1.3908 (1.4438) teacher_loss 1.1572 (1.2051) loss_zs_kd 0.0051 (0.0023) loss_oracle 0.0231 (0.0113) acc 68.7500 (68.7642) lr 1.0000e-05 eta 0:36:45
+epoch [1/50] batch [240/288] time 0.149 (0.155) data 0.000 (0.002) loss 1.0581 (1.4392) teacher_loss 0.8658 (1.2017) loss_zs_kd 0.0043 (0.0025) loss_oracle 0.0271 (0.0127) acc 75.0000 (68.8802) lr 1.0000e-05 eta 0:36:32
+epoch [1/50] batch [260/288] time 0.147 (0.154) data 0.000 (0.002) loss 1.4052 (1.4441) teacher_loss 1.1281 (1.2070) loss_zs_kd 0.0051 (0.0028) loss_oracle 0.0222 (0.0134) acc 71.8750 (68.8341) lr 1.0000e-05 eta 0:36:21
+epoch [1/50] batch [280/288] time 0.140 (0.154) data 0.000 (0.001) loss 1.0868 (1.4448) teacher_loss 0.8584 (1.2076) loss_zs_kd 0.0039 (0.0030) loss_oracle 0.0154 (0.0134) acc 81.2500 (68.7835) lr 1.0000e-05 eta 0:36:09
+Evaluate on the *val* set
+=> result
+* total: 3,939
+* correct: 3,278
+* accuracy: 83.2%
+* error: 16.8%
+* macro_f1: 82.3%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,427
+* correct: 1,969
+* accuracy: 81.1%
+* error: 18.9%
+* macro_f1: 76.9%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best-test.pth.tar
+******* Domain a best val acc:      83.2%, epoch: 1 *******
+******* Domain a best val test acc: 81.1%, epoch: 1 *******
+******* Domain a best test acc:     81.1%, epoch: 1 *******
+epoch [2/50] batch [20/288] time 0.067 (0.206) data 0.000 (0.018) loss 1.9233 (1.7038) teacher_loss 1.3354 (1.1185) loss_zs_kd 0.0842 (0.0590) loss_oracle 0.5182 (0.4390) acc 65.6250 (70.1562) lr 2.0000e-03 eta 0:48:23
+epoch [2/50] batch [40/288] time 0.144 (0.172) data 0.000 (0.009) loss 2.0492 (1.8438) teacher_loss 1.1720 (1.1506) loss_zs_kd 0.0920 (0.0652) loss_oracle 0.6719 (0.5405) acc 78.1250 (70.2344) lr 2.0000e-03 eta 0:40:14
+epoch [2/50] batch [60/288] time 0.148 (0.165) data 0.000 (0.006) loss 1.7854 (1.8861) teacher_loss 1.0757 (1.1612) loss_zs_kd 0.0614 (0.0647) loss_oracle 0.5705 (0.5744) acc 71.8750 (69.7396) lr 2.0000e-03 eta 0:38:39
+epoch [2/50] batch [80/288] time 0.145 (0.160) data 0.000 (0.005) loss 1.9277 (1.8652) teacher_loss 1.2141 (1.1525) loss_zs_kd 0.1047 (0.0644) loss_oracle 0.6227 (0.5734) acc 65.6250 (69.7656) lr 2.0000e-03 eta 0:37:27
+epoch [2/50] batch [100/288] time 0.145 (0.157) data 0.000 (0.004) loss 1.7662 (1.8428) teacher_loss 1.1198 (1.1419) loss_zs_kd 0.0572 (0.0642) loss_oracle 0.4551 (0.5678) acc 68.7500 (69.8750) lr 2.0000e-03 eta 0:36:44
+epoch [2/50] batch [120/288] time 0.142 (0.155) data 0.000 (0.003) loss 1.9561 (1.8238) teacher_loss 1.1770 (1.1314) loss_zs_kd 0.0668 (0.0633) loss_oracle 0.5882 (0.5633) acc 78.1250 (70.2083) lr 2.0000e-03 eta 0:36:15
+epoch [2/50] batch [140/288] time 0.146 (0.154) data 0.000 (0.003) loss 1.8833 (1.7967) teacher_loss 1.2020 (1.1121) loss_zs_kd 0.0786 (0.0613) loss_oracle 0.5366 (0.5609) acc 68.7500 (70.8036) lr 2.0000e-03 eta 0:35:56
+epoch [2/50] batch [160/288] time 0.147 (0.153) data 0.000 (0.002) loss 2.1410 (1.7741) teacher_loss 1.5220 (1.0921) loss_zs_kd 0.0672 (0.0608) loss_oracle 0.5915 (0.5629) acc 59.3750 (71.3281) lr 2.0000e-03 eta 0:35:38
+epoch [2/50] batch [180/288] time 0.148 (0.152) data 0.000 (0.002) loss 2.1589 (1.7789) teacher_loss 1.5600 (1.1030) loss_zs_kd 0.0573 (0.0603) loss_oracle 0.5556 (0.5617) acc 65.6250 (71.1806) lr 2.0000e-03 eta 0:35:22
+epoch [2/50] batch [200/288] time 0.146 (0.152) data 0.000 (0.002) loss 1.4266 (1.7742) teacher_loss 0.8327 (1.1038) loss_zs_kd 0.0465 (0.0606) loss_oracle 0.5661 (0.5579) acc 71.8750 (71.2812) lr 2.0000e-03 eta 0:35:09
+epoch [2/50] batch [220/288] time 0.141 (0.151) data 0.000 (0.002) loss 1.8375 (1.7784) teacher_loss 1.1310 (1.1086) loss_zs_kd 0.0868 (0.0603) loss_oracle 0.5670 (0.5583) acc 75.0000 (71.0795) lr 2.0000e-03 eta 0:34:56
+epoch [2/50] batch [240/288] time 0.150 (0.150) data 0.000 (0.002) loss 1.5944 (1.7636) teacher_loss 1.0110 (1.0969) loss_zs_kd 0.0560 (0.0606) loss_oracle 0.5350 (0.5568) acc 75.0000 (71.4453) lr 2.0000e-03 eta 0:34:45
+epoch [2/50] batch [260/288] time 0.144 (0.150) data 0.000 (0.002) loss 2.6451 (1.7657) teacher_loss 1.9833 (1.1035) loss_zs_kd 0.0808 (0.0604) loss_oracle 0.5667 (0.5559) acc 46.8750 (71.2260) lr 2.0000e-03 eta 0:34:36
+epoch [2/50] batch [280/288] time 0.149 (0.150) data 0.000 (0.001) loss 1.6716 (1.7562) teacher_loss 1.1770 (1.0976) loss_zs_kd 0.0376 (0.0596) loss_oracle 0.5312 (0.5542) acc 62.5000 (71.3281) lr 2.0000e-03 eta 0:34:29
+Evaluate on the *val* set
+=> result
+* total: 3,939
+* correct: 3,358
+* accuracy: 85.3%
+* error: 14.7%
+* macro_f1: 84.5%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,427
+* correct: 2,018
+* accuracy: 83.1%
+* error: 16.9%
+* macro_f1: 79.5%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best-test.pth.tar
+******* Domain a best val acc:      85.3%, epoch: 2 *******
+******* Domain a best val test acc: 83.1%, epoch: 2 *******
+******* Domain a best test acc:     83.1%, epoch: 2 *******
+epoch [3/50] batch [20/288] time 0.121 (0.198) data 0.000 (0.013) loss 1.2799 (1.6341) teacher_loss 0.7864 (0.9967) loss_zs_kd 0.0368 (0.0595) loss_oracle 0.5546 (0.5375) acc 78.1250 (73.9062) lr 1.9980e-03 eta 0:45:29
+epoch [3/50] batch [40/288] time 0.144 (0.171) data 0.000 (0.007) loss 1.7765 (1.6887) teacher_loss 1.0694 (1.0412) loss_zs_kd 0.0505 (0.0591) loss_oracle 0.5441 (0.5450) acc 71.8750 (72.4219) lr 1.9980e-03 eta 0:39:14
+epoch [3/50] batch [60/288] time 0.147 (0.163) data 0.000 (0.005) loss 1.0612 (1.6926) teacher_loss 0.4762 (1.0470) loss_zs_kd 0.0602 (0.0593) loss_oracle 0.5072 (0.5365) acc 87.5000 (71.9792) lr 1.9980e-03 eta 0:37:17
+epoch [3/50] batch [80/288] time 0.147 (0.159) data 0.000 (0.003) loss 1.6084 (1.6881) teacher_loss 1.0078 (1.0565) loss_zs_kd 0.0413 (0.0574) loss_oracle 0.4860 (0.5265) acc 78.1250 (72.2656) lr 1.9980e-03 eta 0:36:18
+epoch [3/50] batch [100/288] time 0.146 (0.156) data 0.000 (0.003) loss 1.3760 (1.6677) teacher_loss 0.8604 (1.0465) loss_zs_kd 0.0437 (0.0563) loss_oracle 0.4518 (0.5211) acc 78.1250 (72.3750) lr 1.9980e-03 eta 0:35:41
+epoch [3/50] batch [120/288] time 0.147 (0.155) data 0.000 (0.002) loss 1.5107 (1.6638) teacher_loss 0.9032 (1.0486) loss_zs_kd 0.0744 (0.0578) loss_oracle 0.4953 (0.5151) acc 84.3750 (72.3958) lr 1.9980e-03 eta 0:35:18
+epoch [3/50] batch [140/288] time 0.148 (0.153) data 0.000 (0.002) loss 1.6560 (1.6555) teacher_loss 1.0246 (1.0464) loss_zs_kd 0.0436 (0.0577) loss_oracle 0.5463 (0.5110) acc 75.0000 (72.3438) lr 1.9980e-03 eta 0:35:00
+epoch [3/50] batch [160/288] time 0.141 (0.152) data 0.000 (0.002) loss 2.2950 (1.6806) teacher_loss 1.6057 (1.0674) loss_zs_kd 0.0922 (0.0581) loss_oracle 0.5254 (0.5124) acc 59.3750 (71.5625) lr 1.9980e-03 eta 0:34:31
+epoch [3/50] batch [180/288] time 0.147 (0.151) data 0.000 (0.002) loss 2.0620 (1.7013) teacher_loss 1.3756 (1.0810) loss_zs_kd 0.0937 (0.0583) loss_oracle 0.5146 (0.5135) acc 62.5000 (71.1632) lr 1.9980e-03 eta 0:34:20
+epoch [3/50] batch [200/288] time 0.147 (0.151) data 0.000 (0.001) loss 1.5685 (1.7011) teacher_loss 1.0413 (1.0773) loss_zs_kd 0.0430 (0.0586) loss_oracle 0.4835 (0.5144) acc 71.8750 (71.3750) lr 1.9980e-03 eta 0:34:10
+epoch [3/50] batch [220/288] time 0.146 (0.150) data 0.000 (0.001) loss 2.2521 (1.7058) teacher_loss 1.5195 (1.0810) loss_zs_kd 0.1061 (0.0587) loss_oracle 0.4957 (0.5138) acc 59.3750 (71.1932) lr 1.9980e-03 eta 0:34:01
+epoch [3/50] batch [240/288] time 0.145 (0.150) data 0.000 (0.001) loss 1.7764 (1.6951) teacher_loss 1.1148 (1.0717) loss_zs_kd 0.0906 (0.0596) loss_oracle 0.4842 (0.5120) acc 71.8750 (71.3281) lr 1.9980e-03 eta 0:33:53
+epoch [3/50] batch [260/288] time 0.147 (0.149) data 0.000 (0.001) loss 1.7203 (1.7002) teacher_loss 1.0962 (1.0740) loss_zs_kd 0.0534 (0.0604) loss_oracle 0.5056 (0.5113) acc 71.8750 (71.3101) lr 1.9980e-03 eta 0:33:46
+epoch [3/50] batch [280/288] time 0.145 (0.149) data 0.000 (0.001) loss 1.4601 (1.6964) teacher_loss 0.8683 (1.0692) loss_zs_kd 0.0445 (0.0607) loss_oracle 0.4671 (0.5099) acc 71.8750 (71.4844) lr 1.9980e-03 eta 0:33:39
+Evaluate on the *val* set
+=> result
+* total: 3,939
+* correct: 3,362
+* accuracy: 85.4%
+* error: 14.6%
+* macro_f1: 84.6%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best.pth.tar
+Evaluate on the *test* set
+=> result
+* total: 2,427
+* correct: 2,026
+* accuracy: 83.5%
+* error: 16.5%
+* macro_f1: 79.7%
+Checkpoint saved to icml/multi-dg/tuning/16_seperate_2prompt_detach/TRIP/office_home/b32_ep50/ViT-B16/a/seed_1/warmup_1/prompt_learner/model-best-test.pth.tar
+******* Domain a best val acc:      85.4%, epoch: 3 *******
+******* Domain a best val test acc: 83.5%, epoch: 3 *******
+******* Domain a best test acc:     83.5%, epoch: 3 *******
+epoch [4/50] batch [20/288] time 0.282 (0.180) data 0.000 (0.014) loss 1.4514 (1.6370) teacher_loss 0.8014 (1.0017) loss_zs_kd 0.0341 (0.0714) loss_oracle 0.4532 (0.4755) acc 81.2500 (74.0625) lr 1.9921e-03 eta 0:40:35
+epoch [4/50] batch [40/288] time 0.144 (0.158) data 0.000 (0.007) loss 1.5169 (1.6199) teacher_loss 0.9527 (1.0111) loss_zs_kd 0.0635 (0.0637) loss_oracle 0.4609 (0.4718) acc 78.1250 (73.2812) lr 1.9921e-03 eta 0:35:35
+epoch [4/50] batch [60/288] time 0.148 (0.155) data 0.000 (0.005) loss 1.3365 (1.5728) teacher_loss 0.7095 (0.9762) loss_zs_kd 0.0725 (0.0644) loss_oracle 0.4731 (0.4699) acc 81.2500 (73.8542) lr 1.9921e-03 eta 0:34:46
+epoch [4/50] batch [80/288] time 0.146 (0.153) data 0.000 (0.004) loss 1.4587 (1.5974) teacher_loss 0.9089 (1.0049) loss_zs_kd 0.0498 (0.0637) loss_oracle 0.4011 (0.4662) acc 71.8750 (72.9688) lr 1.9921e-03 eta 0:34:18
+epoch [4/50] batch [100/288] time 0.148 (0.152) data 0.000 (0.003) loss 1.9474 (1.6044) teacher_loss 1.3465 (1.0162) loss_zs_kd 0.0732 (0.0623) loss_oracle 0.4520 (0.4607) acc 65.6250 (72.8125) lr 1.9921e-03 eta 0:33:57
+epoch [4/50] batch [120/288] time 0.147 (0.151) data 0.000 (0.003) loss 1.5888 (1.6121) teacher_loss 1.0106 (1.0274) loss_zs_kd 0.1325 (0.0644) loss_oracle 0.4629 (0.4586) acc 75.0000 (72.5521) lr 1.9921e-03 eta 0:33:44
+epoch [4/50] batch [140/288] time 0.146 (0.150) data 0.000 (0.002) loss 1.9442 (1.6256) teacher_loss 1.2350 (1.0337) loss_zs_kd 0.0654 (0.0660) loss_oracle 0.4565 (0.4591) acc 71.8750 (72.4107) lr 1.9921e-03 eta 0:33:33
+epoch [4/50] batch [160/288] time 0.146 (0.150) data 0.000 (0.002) loss 2.0614 (1.6407) teacher_loss 1.3851 (1.0485) loss_zs_kd 0.0692 (0.0668) loss_oracle 0.4595 (0.4586) acc 62.5000 (72.1875) lr 1.9921e-03 eta 0:33:24
+epoch [4/50] batch [180/288] time 0.148 (0.149) data 0.000 (0.002) loss 1.5474 (1.6338) teacher_loss 1.0179 (1.0404) loss_zs_kd 0.0552 (0.0670) loss_oracle 0.4343 (0.4557) acc 71.8750 (72.4653) lr 1.9921e-03 eta 0:33:16
+epoch [4/50] batch [200/288] time 0.145 (0.149) data 0.000 (0.002) loss 1.2751 (1.6270) teacher_loss 0.7117 (1.0354) loss_zs_kd 0.0568 (0.0664) loss_oracle 0.3699 (0.4520) acc 81.2500 (72.4844) lr 1.9921e-03 eta 0:33:09
+epoch [4/50] batch [220/288] time 0.146 (0.149) data 0.000 (0.001) loss 1.3953 (1.6270) teacher_loss 0.7558 (1.0373) loss_zs_kd 0.0728 (0.0656) loss_oracle 0.4471 (0.4497) acc 81.2500 (72.4432) lr 1.9921e-03 eta 0:33:02
+epoch [4/50] batch [240/288] time 0.147 (0.149) data 0.000 (0.001) loss 1.7700 (1.6353) teacher_loss 1.2977 (1.0455) loss_zs_kd 0.0568 (0.0663) loss_oracle 0.4236 (0.4470) acc 65.6250 (72.2526) lr 1.9921e-03 eta 0:32:57
+epoch [4/50] batch [260/288] time 0.145 (0.149) data 0.000 (0.001) loss 1.6687 (1.6391) teacher_loss 1.0568 (1.0496) loss_zs_kd 0.0431 (0.0652) loss_oracle 0.4276 (0.4458) acc 68.7500 (72.1274) lr 1.9921e-03 eta 0:32:52
+epoch [4/50] batch [280/288] time 0.145 (0.148) data 0.000 (0.001) loss 1.5648 (1.6428) teacher_loss 1.0024 (1.0538) loss_zs_kd 0.0384 (0.0648) loss_oracle 0.4242 (0.4441) acc 75.0000 (72.1652) lr 1.9921e-03 eta 0:32:47
+Evaluate on the *val* set
+=> result
+* total: 3,939
+* correct: 3,361
+* accuracy: 85.3%
+* error: 14.7%
+* macro_f1: 84.6%
+Evaluate on the *test* set
+=> result
+* total: 2,427
+* correct: 2,020
+* accuracy: 83.2%
+* error: 16.8%
+* macro_f1: 79.7%
+******* Domain a best val acc:      85.4%, epoch: 3 *******
+******* Domain a best val test acc: 83.5%, epoch: 3 *******
+******* Domain a best test acc:     83.5%, epoch: 3 *******

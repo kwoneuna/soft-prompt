@@ -1,0 +1,43 @@
+Loading trainer: TRIP
+Loading dataset: SPG_OfficeHome
+Building transform_train
++ random resized crop (size=(224, 224), scale=(0.08, 1.0))
++ random flip
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+Building transform_test
++ resize the smaller edge to 224
++ 224x224 center crop
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+---------  --------------------------------
+Dataset    SPG_OfficeHome
+Source     ['art', 'product', 'real_world']
+Target     ['clipart']
+# classes  65
+# train_x  7,870
+# val      3,353
+# test     4,365
+---------  --------------------------------
+Loading CLIP (backbone: ViT-B/16)
+Building custom CLIP
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Turning off gradients in both the image and the text encoder
+=== Trainable Parameters by Module ===
+prompt_learner.0.ctx                               2,048
+prompt_learner.1.ctx                               2,048
+prompt_learner.2.ctx                               2,048
+gate.mlp.0.weight                                  65,536
+gate.mlp.0.bias                                    128
+gate.mlp.2.weight                                  384
+gate.mlp.2.bias                                    3
+Total trainable params: 72,195
+Loading evaluator: Classification
+No checkpoint found, train from scratch
+Initialize tensorboard (log_dir=icml/multi-dg/oracle/03_optim/TRIP/office_home/b32_ep50/ViT-B16/c/seed_1/warmup_1/tensorboard)
+epoch [1/50] batch [20/245] time 0.091 (0.133) data 0.000 (0.022) loss 0.8507 (0.9467) ce_loss 0.8481 (0.9444) teacher_loss 0.8488 (0.9445) loss_zs_kd 0.0000 (0.0000) loss_oracle 0.0019 (0.0022) acc 75.0000 (76.5625) kd_loss 0.0074 (0.0089) lr 1.0000e-05 eta 0:27:07

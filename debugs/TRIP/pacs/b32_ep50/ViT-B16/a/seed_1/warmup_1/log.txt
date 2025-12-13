@@ -1,0 +1,74 @@
+Loading trainer: TRIP
+Loading dataset: SPG_PACS
+Building transform_train
++ random resized crop (size=(224, 224), scale=(0.08, 1.0))
++ random flip
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+Building transform_test
++ resize the smaller edge to 224
++ 224x224 center crop
++ to torch tensor of range [0, 1]
++ normalization (mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
+---------  ------------------------------
+Dataset    SPG_PACS
+Source     ['cartoon', 'photo', 'sketch']
+Target     ['art_painting']
+# classes  7
+# train_x  5,557
+# val      2,385
+# test     2,048
+---------  ------------------------------
+Loading CLIP (backbone: ViT-B/16)
+Building custom CLIP
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Initial context: "a photo of a"
+Number of context words (tokens): 4
+Turning off gradients in both the image and the text encoder
+=== Trainable Parameters by Module ===
+prompt_learner.0.ctx                               2,048
+prompt_learner.1.ctx                               2,048
+prompt_learner.2.ctx                               2,048
+gate.mlp.0.weight                                  65,536
+gate.mlp.0.bias                                    128
+gate.mlp.2.weight                                  384
+gate.mlp.2.bias                                    3
+Total trainable params: 72,195
+Loading evaluator: Classification
+No checkpoint found, train from scratch
+Initialize tensorboard (log_dir=debugs/TRIP/pacs/b32_ep50/ViT-B16/a/seed_1/warmup_1/tensorboard)
+tensor([[0.3367, 0.3351, 0.3283],
+        [0.3149, 0.3291, 0.3560],
+        [0.2937, 0.2598, 0.4465],
+        [0.3015, 0.2741, 0.4244],
+        [0.3873, 0.3109, 0.3018],
+        [0.4045, 0.2999, 0.2956],
+        [0.3157, 0.2950, 0.3893],
+        [0.3161, 0.3292, 0.3547],
+        [0.3246, 0.3460, 0.3294],
+        [0.3083, 0.3267, 0.3649],
+        [0.3035, 0.2759, 0.4206],
+        [0.3479, 0.3336, 0.3186],
+        [0.3062, 0.3267, 0.3671],
+        [0.2992, 0.2703, 0.4304],
+        [0.3357, 0.3353, 0.3290],
+        [0.3922, 0.3079, 0.2999],
+        [0.3241, 0.3461, 0.3298],
+        [0.3524, 0.3335, 0.3141],
+        [0.3234, 0.3461, 0.3304],
+        [0.2989, 0.2680, 0.4331],
+        [0.3696, 0.3159, 0.3144],
+        [0.3231, 0.3475, 0.3294],
+        [0.3376, 0.3357, 0.3266],
+        [0.2986, 0.2685, 0.4329],
+        [0.3357, 0.3353, 0.3290],
+        [0.3139, 0.3326, 0.3534],
+        [0.3800, 0.3128, 0.3072],
+        [0.3069, 0.3280, 0.3652],
+        [0.3945, 0.3036, 0.3018],
+        [0.3366, 0.3367, 0.3267],
+        [0.3233, 0.3474, 0.3293],
+        [0.2988, 0.2704, 0.4308]], device='cuda:0')

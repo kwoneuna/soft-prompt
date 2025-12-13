@@ -1,4 +1,3 @@
-97.6
 import os
 import time
 import datetime
@@ -14,7 +13,7 @@ from scipy.stats import pointbiserialr
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from torch.utils.tensorboard import SummaryWriter
-
+import json
 from dassl.engine import TRAINER_REGISTRY, TrainerX
 from dassl.metrics import compute_accuracy
 from dassl.utils import load_pretrained_weights, load_checkpoint
@@ -151,36 +150,29 @@ class PromptLearner(nn.Module):
             raise ValueError
 
         return prompts
-# class ChannelWisePreGate(nn.Module):
-#     def __init__(self, dim, reduction=4):
-#         super().__init__()
-#         hid = max(1, dim // reduction)
-#         self.mlp = nn.Sequential(
-#             nn.Linear(dim, hid),
-#             nn.ReLU(),
-#             nn.Linear(hid, dim),
-#             nn.Sigmoid()  # 0~1 채널별 gate
-#         )
 
-#     def forward(self, x):
-#         # x: [B, D]
-#         w = self.mlp(x)        # [B, D]
-#         return w
-class ChannelWisePreGate(nn.Module):
-    def __init__(self, dim, out_dim, reduction=4):
-        super().__init__()
-        hid = max(1, dim // reduction)
-        self.mlp = nn.Sequential(
-            nn.Linear(dim, hid),
-            nn.ReLU(),
-            nn.Linear(hid, out_dim),
-            nn.Sigmoid()  # 0~1 범위 gate
-        )
+def relu_with_gelu_grad(x: torch.Tensor) -> torch.Tensor:
+    """
+    forward 값은 ReLU(x), gradient는 GELU(x)를 따르는 functional 버전.
+    """
+    relu_x = F.relu(x)
+    gelu_x = F.gelu(x)
+    return relu_x.detach() + gelu_x - gelu_x.detach()
 
-    def forward(self, x):
-        # x: [B, dim]
-        w = self.mlp(x)        # [B, out_dim]
-        return w
+
+def non_negative_cross_entropy(
+    logits: torch.Tensor,
+    target: torch.Tensor,
+    reduction: str = "mean"
+) -> torch.Tensor:
+    """
+    Non-negative Contrastive Loss 스타일의 Cross Entropy:
+
+    1) logits 에 GELU-grad ReLU 적용 (값은 비음수, gradient는 GELU 기준)
+    2) 그 위에 Cross Entropy 계산
+    """
+    logits_nn = relu_with_gelu_grad(logits)
+    return F.cross_entropy(logits_nn, target, reduction=reduction)
 
 class ZeroShotTextFeatures(nn.Module):
     def __init__(self, classnames, clip_model, template="a photo of a {}."):
@@ -210,6 +202,29 @@ class ZeroShotTextFeatures(nn.Module):
     def forward(self):
         # [C, D] 반환 (기본적으로 float32)
         return self.zs_text_feat
+    
+class ReLUWithGELUGrad(nn.Module):
+    def forward(self, x):
+        # 값은 ReLU(x), 기울기는 GELU(x) 기준
+        relu_x = F.relu(x)
+        gelu_x = F.gelu(x)
+        return relu_x.detach() + gelu_x - gelu_x.detach()
+
+class ChannelWisePreGate(nn.Module):
+    def __init__(self, dim, out_dim, reduction=4):
+        super().__init__()
+        hid = max(1, dim // reduction)
+        self.mlp = nn.Sequential(
+            nn.Linear(dim, hid),
+            ReLUWithGELUGrad(),          # 여기서 트릭 적용
+            nn.Linear(hid, out_dim),
+            nn.Sigmoid()                 # 0~1 
+        )
+
+    def forward(self, x):
+        # x: [B, dim]
+        w = self.mlp(x) 
+        return w
 class CustomCLIP(nn.Module):
     def __init__(self, cfg, classnames, clip_model):
         super().__init__()
@@ -225,71 +240,90 @@ class CustomCLIP(nn.Module):
         self.C = self.num_classes
         self.prompt_learner = nn.ModuleList([
             PromptLearner(cfg, classnames, clip_model)
-            for i in range(self.num_selected_prompts)
+            for _ in range(self.num_selected_prompts)
         ])
         self.tokenized_prompts = self.prompt_learner[0].tokenized_prompts
         self.image_encoder = clip_model.visual
         self.text_encoder = TextEncoder(cfg, clip_model, self.prompt_learner[0])
-        # --- Gating head: image-only -> K logits ---
-        # self.gate = nn.Linear(self.image_encoder.output_dim if hasattr(self.image_encoder, "output_dim") else self.prompt_learner[0].ctx.shape[-1],  # 대개 CLIP visual dim
-        #                          self.K, bias=True)
-        self.lambda_kd = float(getattr(cfg.TRAINER.TRIP, "LAMBDA_KD", 1.0))    # teacher vs student KL
+       
         self.tau_gate  = float(getattr(cfg.TRAINER.TRIP, "TAU_GATE", 1.0))    # softmax 온도(학생)
         self.var_eps = float(getattr(cfg.TRAINER.TRIP, "VAR_EPS", 1e-5))
         self.min_var = float(getattr(cfg.TRAINER.TRIP, "VAR_MIN", 1e-6))
         self.alpha_pbeb = float(getattr(cfg.TRAINER.TRIP, "ALPHA_PBEB", 0.2))
-        self.beta_var = float(getattr(cfg.TRAINER.TRIP, "BETA_VAR", 0.5))
-        
-        D = 512
+        self.beta_var = float(getattr(cfg.TRAINER.TRIP, "BETA_VAR", 0.5))        
         self.gate = ChannelWisePreGate(dim=512, out_dim=self.K, reduction=4)
-      
-        self.lambda_neighbor = float(
-            getattr(cfg.TRAINER.TRIP, "LAMBDA_NEIGHBOR", 1.0)
-        )
-        self.lambda_align = float(getattr(cfg.TRAINER.TRIP, "LAMBDA_ALIGN", 0.1)) # Alignment Loss (새 특징 vs 텍스트 특징)
-        self.lambda_reg = float(getattr(cfg.TRAINER.TRIP, "LAMBDA_REG", 0.1))      # Regularization Loss (새 특징 vs 원래 특징)
-        # self.gate = nn.Linear(self.image_encoder.output_dim, self.K, bias=True)
         self.bootstrap_ratio = float(getattr(cfg.TRAINER.TRIP, "BOOTSTRAP_RATIO", 0.7))
-        D = 512
-        self.register_buffer(
-            "ema_mu", 
-            torch.zeros(self.K, self.C, D, dtype=self.dtype)
-        )
-        self.register_buffer(
-            "ema_var_mean", 
-            torch.ones(self.K, self.C, D, dtype=self.dtype) * 1e-2
-        )
-        self.register_buffer(
-            "ema_var_disp", 
-            torch.zeros(self.K, self.C, D, dtype=self.dtype)
-        )
         self.zs_text = ZeroShotTextFeatures(classnames, clip_model)
+        self.lambda_oracle = 0.5
+        self.lambda_zs_kd = 0.5
+        self.lambda_kd = 1.0
+        self.tau_zs = 0.1
+        self.tau_oracle = 1.0
+        self.alpha_oracle_mix = 0.5
+        self.hparams = {
+            "backbone": cfg.MODEL.BACKBONE.NAME,
+            "num_prompts": self.num_selected_prompts,
+            "proj_dim": self.proj_dim,
+            "tau_gate": self.tau_gate,
+            "tau_zs": self.tau_zs,
+            "var_eps": self.var_eps,
+            "min_var": self.min_var,
+            "alpha_pbeb": self.alpha_pbeb,
+            "beta_var": self.beta_var,
+            "bootstrap_ratio": self.bootstrap_ratio,
+            "lambda_oracle": self.lambda_oracle,
+            "lambda_zs_kd": self.lambda_zs_kd,
+            "lambda_kd": self.lambda_kd,
+            "prec": cfg.TRAINER.TRIP.PREC,  # precision 정보 등 추가 가능
+            "batch_size": cfg.DATALOADER.TRAIN_X.BATCH_SIZE,
+            "lr": cfg.OPTIM.LR,
+            "tau_oracle":self.tau_oracle,
+        }
+                # ---------------------------
+        # (1) EMA stats (prompt x class x feat_dim)
+        # (2) mu-mix: mu = alpha*mu_text + (1-alpha)*mu_img_ema
+        # (5) speed: will vectorize NLEEP scoring (done in forward)
+        # ---------------------------
+        self.bootstrap_reps = int(getattr(cfg.TRAINER.TRIP, "BOOTSTRAP_REPS", 8))
 
-        self.ema_momentum = float(getattr(cfg.TRAINER.TRIP, "EMA_MOMENTUM", 0.99))
-        self.use_ema_teacher = True  # fla
-        
-        self.lambda_zs_kd = float(
-            getattr(cfg.TRAINER.TRIP, "LAMBDA_ZS_KD", 1.0)
-        )
-        self.tau_zs = float(
-            getattr(cfg.TRAINER.TRIP, "TAU_ZS", 1.0)    # class-logit KD 온도
-        )
-        # ---- teacher prompt (EMA) 세팅 ----
-        self.prompt_ema_beta = float(
-            getattr(cfg.TRAINER.TRIP, "PROMPT_EMA_BETA", 0.99)
-        )
+        self.ema_m = float(getattr(cfg.TRAINER.TRIP, "EMA_M", 0.99))                 # 0.95~0.99
+        self.mu_mix_alpha = float(getattr(cfg.TRAINER.TRIP, "MU_MIX_ALPHA", 0.7))    # 텍스트 중심 비율
+        self.var_shrink = float(getattr(cfg.TRAINER.TRIP, "VAR_SHRINK_LAMBDA", 0.1)) # 0이면 off
 
+        # CLIP feature dim 추정 (대부분 512)
+        feat_dim = int(getattr(clip_model, "embed_dim", 512))
+        self.feat_dim = feat_dim
+
+        # EMA buffers: 모델 .to(device) 따라 이동됨
+        self.register_buffer("ema_mu", torch.zeros(self.K, self.C, feat_dim))
+        self.register_buffer("ema_var_mean", torch.ones(self.K, self.C, feat_dim) * 1e-2)
+        self.register_buffer("ema_var_disp", torch.zeros(self.K, self.C, feat_dim))
+
+        # 이미지 중심 EMA (class x feat_dim)
+        self.register_buffer("ema_img_mu", torch.zeros(self.C, feat_dim))
+
+        # EMA 초기화 여부
+        self.register_buffer("ema_inited", torch.tensor(False))
+
+        # hparams에 기록(선택)
+        self.hparams.update({
+            "ema_m": self.ema_m,
+            "mu_mix_alpha": self.mu_mix_alpha,
+            "var_shrink_lambda": self.var_shrink,
+            "bootstrap_reps": self.bootstrap_reps,
+        })
+
+    def get_entropy(self,probs):
+            return -(probs * (probs + 1e-8).log()).sum(dim=1, keepdim=True)
     def forward(self, image, label=None):
         image = image.to(self.device, dtype=self.dtype)
         logit_scale = self.logit_scale.exp()
 
         
         img_feat = self.image_encoder(image)
-        n_img = img_feat
-
         img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)  # [B, D]
         B, D = img_feat.shape
-        # 2) 프롬프트별 텍스트 특징 및 로짓
+
         text_feats_per_prompt, logits_per_prompt = [], []
         for pl in self.prompt_learner:
             prompts = pl()
@@ -302,16 +336,23 @@ class CustomCLIP(nn.Module):
 
         # [B,K,C]로 한 번 쌓아두기 (label 유무와 상관없이 사용)
         logits_stack = torch.stack(logits_per_prompt, dim=1)     # [B,K,C]
-
         if label is None:
-            gate_logits = self.gate(img_feat.to(torch.float32)) / max(self.tau_gate, 1e-6)  # [B,K] float32
+            gate_logits = self.gate(img_feat.to(torch.float32)) / self.tau_gate  # [B,K] float32
             w_student32 = F.softmax(gate_logits, dim=1)                                     # [B,K]
             w_student = w_student32.to(self.dtype)
-
             weighted_logits = (w_student.unsqueeze(-1) * logits_stack).sum(dim=1)  
-            zs_text_feat = self.zs_text() # Zero-Shot 텍스트 특징 가져오기
-            img_feat=img_feat.to(torch.float32)# [C, D]
-            zs_logits = logit_scale * img_feat @ zs_text_feat.t() # [B, C]# [B,C]
+                        # --- debug stats (no label) ---
+            with torch.no_grad():
+                gate_prob = w_student32  # [B,K]
+                gate_ent = -(gate_prob * (gate_prob + 1e-8).log()).sum(dim=1)  # [B]
+                usage = gate_prob.mean(dim=0)  # [K]
+
+                self.debug_stats = {
+                    "gate/entropy": gate_ent.mean().item(),
+                    "gate/usage_max": usage.max().item(),
+                    "gate/usage_min": usage.min().item(),
+                    "gate/usage_std": usage.std(unbiased=False).item(),
+                }
             return weighted_logits
           
         # ======================================================
@@ -324,104 +365,133 @@ class CustomCLIP(nn.Module):
         R = int(getattr(self, "bootstrap_reps", 8))
         boot_ratio = float(getattr(self, "bootstrap_ratio", 0.7))
         var_eps = float(getattr(self, "var_eps", 1e-6))
+
+        # 클래스별 마스크 (Boolean)
         class_masks = {c: (label_idx == c) for c in range(C)}
 
-        # 배치 단위 teacher 통계 (초기값)
-        batch_mu       = torch.zeros(self.K, self.C, D, device=self.device)
-        batch_var_mean = torch.ones(self.K, self.C, D, device=self.device) * 1e-2
-        batch_var_disp = torch.zeros(self.K, self.C, D, device=self.device)
+        # ---- 배치 통계 텐서
+        batch_mu       = torch.zeros(K, C, D, device=self.device)
+        batch_var_mean = torch.ones(K, C, D, device=self.device) * 1e-2
+        batch_var_disp = torch.zeros(K, C, D, device=self.device)
 
-        # ------------------------------------------------------
-        # (a) 이미지 label 기반 bootstrap으로 클래스별 분산 추정
-        # ------------------------------------------------------
+        # ---- (2) 이미지 중심 배치 평균 -> EMA 업데이트용
+        batch_img_mu = torch.zeros(C, D, device=self.device)
+        valid_cls = torch.zeros(C, device=self.device, dtype=torch.bool)
+
         for c in range(C):
             mask_c = class_masks[c]
             if mask_c.sum() == 0:
                 continue
 
-            feats_c = img_feat[mask_c].detach()    # [Nc, D]
+            valid_cls[c] = True
+            feats_c = img_feat[mask_c].detach()  # [Nc, D]
             Nc = feats_c.size(0)
+            batch_img_mu[c] = feats_c.mean(dim=0)
+
             n_boot = max(1, int(round(Nc * boot_ratio)))
 
             for k in range(K):
-                mu_text = mu_stack[k, c]  # CLIP 텍스트 특징 [D]
+                mu_text = mu_stack[k, c]  # [D]
+
+                # (2) mu-mix: 텍스트 중심 + (EMA 이미지 중심) 또는 배치 이미지 중심
+                # EMA 이미지 중심이 아직 안정적이지 않으면 배치 중심을 먼저 사용
+                # (ema_inited=False인 초기에는 batch_img_mu가 더 안전)
+                if bool(self.ema_inited.item()):
+                    mu_img = self.ema_img_mu[c]
+                else:
+                    mu_img = batch_img_mu[c]
+
+                mu_mix = self.mu_mix_alpha * mu_text + (1.0 - self.mu_mix_alpha) * mu_img
 
                 if Nc < 2:
-                    # 데이터가 너무 적으면 default variance
-                    batch_mu[k, c] = mu_text
-                    batch_var_mean[k, c] = torch.full_like(mu_text, 1e-2)
-                    batch_var_disp[k, c] = torch.zeros_like(mu_text)
+                    batch_mu[k, c] = mu_mix
+                    batch_var_mean[k, c] = torch.full_like(mu_mix, 1e-2)
+                    batch_var_disp[k, c] = torch.zeros_like(mu_mix)
                 else:
-                    # Bootstrap estimation
                     idx = torch.randint(0, Nc, (R, n_boot), device=self.device)  # [R, n_boot]
                     feats_boot = feats_c[idx]                                     # [R, n_boot, D]
-                    var_r = ((feats_boot - mu_text) ** 2).mean(dim=1) + var_eps  # [R,D]
 
-                    batch_mu[k, c]       = mu_text
-                    batch_var_mean[k, c] = var_r.mean(dim=0)                     # [D]
-                    batch_var_disp[k, c] = var_r.var(dim=0, unbiased=False)      # [D]
+                    # (2) mu_mix 기준 분산 추정
+                    var_r = ((feats_boot - mu_mix) ** 2).mean(dim=1) + var_eps    # [R, D]
 
-        # ------------------------------------------------------
-        # (b) EMA update (teacher)
-        # ------------------------------------------------------
-        if self.use_ema_teacher:
-            m = self.ema_momentum
-            # 수정: batch_mu 등을 더할 때 .detach()를 사용해야 함
-            self.ema_mu        = m * self.ema_mu        + (1 - m) * batch_mu.detach()
-            self.ema_var_mean = m * self.ema_var_mean + (1 - m) * batch_var_mean.detach()
-            self.ema_var_disp = m * self.ema_var_disp + (1 - m) * batch_var_disp.detach()
-        else:
-            # 수정: 여기도 detach 필요
-            self.ema_mu        = batch_mu.detach()
-            self.ema_var_mean = batch_var_mean.detach()
-            self.ema_var_disp = batch_var_disp.detach()
-        # ------------------------------------------------------
-        # (c) Teacher routing (EMA NLEEP)
-        # ------------------------------------------------------
+                    batch_mu[k, c]       = mu_mix
+                    batch_var_mean[k, c] = var_r.mean(dim=0)
+                    batch_var_disp[k, c] = var_r.var(dim=0, unbiased=False)
+
+        # ======================================================
+        # (1) EMA 업데이트 (no_grad)
+        # ======================================================
+        with torch.no_grad():
+            if not bool(self.ema_inited.item()):
+                # 초기에는 valid class만 채우고 inited=True
+                if valid_cls.any():
+                    self.ema_img_mu[valid_cls] = batch_img_mu[valid_cls].to(self.ema_img_mu.dtype)
+                    self.ema_mu[:, valid_cls, :] = batch_mu[:, valid_cls, :].to(self.ema_mu.dtype)
+                    self.ema_var_mean[:, valid_cls, :] = batch_var_mean[:, valid_cls, :].to(self.ema_var_mean.dtype)
+                    self.ema_var_disp[:, valid_cls, :] = batch_var_disp[:, valid_cls, :].to(self.ema_var_disp.dtype)
+                self.ema_inited.fill_(True)
+            else:
+                m = self.ema_m
+                if valid_cls.any():
+                    # img center EMA
+                    self.ema_img_mu[valid_cls] = (
+                        m * self.ema_img_mu[valid_cls] + (1.0 - m) * batch_img_mu[valid_cls]
+                    ).to(self.ema_img_mu.dtype)
+
+                    # prompt/class stats EMA
+                    vc = valid_cls.view(1, C, 1)  # [1,C,1] broadcast
+                    self.ema_mu = torch.where(
+                        vc, (m * self.ema_mu + (1.0 - m) * batch_mu.to(self.ema_mu.dtype)), self.ema_mu
+                    )
+                    self.ema_var_mean = torch.where(
+                        vc, (m * self.ema_var_mean + (1.0 - m) * batch_var_mean.to(self.ema_var_mean.dtype)), self.ema_var_mean
+                    )
+                    self.ema_var_disp = torch.where(
+                        vc, (m * self.ema_var_disp + (1.0 - m) * batch_var_disp.to(self.ema_var_disp.dtype)), self.ema_var_disp
+                    )
+
+        # ======================================================
+        # (5) NLEEP score 계산 벡터화: class 루프만, prompt 루프 제거
+        # ======================================================
         nleep_scores = torch.full((B, K), -1e9, device=self.device, dtype=torch.float32)
 
-        for k in range(K):
-            for c in range(C):
-                mask_c = class_masks[c]
-                if mask_c.sum() == 0:
-                    continue
+        # [D] 형태로 전역 분산 prior (EMA var_mean 기반)
+        global_var = self.ema_var_mean.to(torch.float32).mean(dim=(0, 1))  # [D]
 
-                mu       = self.ema_mu[k, c].to(torch.float32)        # [D]
-                var_mean = self.ema_var_mean[k, c].to(torch.float32)  # [D]
-                var_disp = self.ema_var_disp[k, c].to(torch.float32)  # [D]
+        for c in range(C):
+            mask_c = class_masks[c]
+            if mask_c.sum() == 0:
+                continue
 
-                adjusted_var = var_mean + self.alpha_pbeb * var_disp
-                adjusted_var = torch.clamp(adjusted_var, min=self.min_var)
+            x = img_feat[mask_c].to(torch.float32)  # [Nc, D]
 
-                x = img_feat[mask_c].to(torch.float32)  # [Nc,D]
-                diff = x - mu
-                log_prob = -0.5 * (
-                    (diff * diff) / adjusted_var + adjusted_var.log()
-                ).sum(dim=1)                           # [Nc]
+            mu = self.ema_mu[:, c, :].to(torch.float32)              # [K, D]
+            var_mean = self.ema_var_mean[:, c, :].to(torch.float32)  # [K, D]
+            var_disp = self.ema_var_disp[:, c, :].to(torch.float32)  # [K, D]
 
-                nleep_scores[mask_c, k] = log_prob
+            adjusted_var = var_mean + self.alpha_pbeb * var_disp
+
+            # (2) shrinkage (optional): 폭주 방지
+            if self.var_shrink > 0:
+                adjusted_var = (1.0 - self.var_shrink) * adjusted_var + self.var_shrink * global_var.unsqueeze(0)
+
+            adjusted_var = torch.clamp(adjusted_var, min=self.min_var)  # [K, D]
+
+            diff = x.unsqueeze(1) - mu.unsqueeze(0)                     # [Nc, K, D]
+            log_prob = -0.5 * (
+                (diff * diff) / adjusted_var.unsqueeze(0) + adjusted_var.log().unsqueeze(0)
+            ).sum(dim=-1)                                               # [Nc, K]
+
+            nleep_scores[mask_c] = log_prob
 
         row_has_val = torch.isfinite(nleep_scores).any(dim=1)
         if not row_has_val.all():
             nleep_scores[~row_has_val] = 0.0
 
-        # Teacher weight (라벨 + NLEEP 기반)
-        weights_teacher32 = F.softmax(nleep_scores, dim=1)   # [B,K] float32
-
-        # ------------------------------------------------------
-        # (d) Student gate + KD (그대로 유지)
-        # ------------------------------------------------------
+        weights_teacher32 = F.softmax(nleep_scores, dim=1)  # [B, K] float32
         gate_logits = self.gate(img_feat.to(torch.float32)) / max(self.tau_gate, 1e-6)  # [B,K] float32
-        weights_student32 = F.softmax(gate_logits, dim=1)                                # [B,K]
-        weights_student = weights_student32.to(self.dtype)
-        weighted_logits = (weights_student.unsqueeze(-1) *  torch.stack(logits_per_prompt, dim=1)).sum(dim=1) # [B,C]
-        kd = F.kl_div(
-            F.log_softmax(gate_logits, dim=1),  # log P_student
-            weights_teacher32.detach(),         # Q_teacher
-            reduction="batchmean"
-        )
-        self.loss_gate_kd = kd
-        tau_zs = max(self.tau_zs, 1e-6)
+
+        tau_zs = self.tau_zs
         zs_text_feat = self.zs_text()  
         img_feat=img_feat.to(torch.float32)# [C, D]
         zs_logits = logit_scale * img_feat @ zs_text_feat.t()  # [B, C]
@@ -429,10 +499,8 @@ class CustomCLIP(nn.Module):
         teacher_T = zs_logits.detach() / tau_zs
         kd_zs_per_prompt = []
         for k in range(self.K):
-            # k번째 프롬프트의 로짓 (Student)
             logits_k = logits_per_prompt[k].to(torch.float32) # [B, C]
             student_T_k = logits_k / tau_zs
-            # 프롬프트 k의 로짓 분포 vs 하이브리드 Teacher Target 분포 간의 KD
             kd_k = F.kl_div(
                 F.log_softmax(student_T_k, dim=1),        # log P_student_k(y|x)
                 F.softmax(teacher_T, dim=1),                        # Q_target (정답 레이블로 보정됨)
@@ -440,211 +508,82 @@ class CustomCLIP(nn.Module):
             ) * (tau_zs ** 2)
             kd_zs_per_prompt.append(kd_k)
 
-        # 2. 모든 프롬프트별 KD 손실의 평균을 최종 kd_zs 손실로 사용
         kd_zs = torch.stack(kd_zs_per_prompt).mean()
-        
-        ##추가한거
+       
+     
+        self.loss_zs_kd = kd_zs
         ce_per_prompt = []
         for k in range(self.K):
-            # 각 prompt k의 CE: [B]
-            ce_k = F.cross_entropy(
-                logits_per_prompt[k].to(torch.float32),  # [B, C]
-                label_idx,                               # [B]
+            logits_k = logits_per_prompt[k].to(torch.float32)  # [B, C]
+            ce_k = non_negative_cross_entropy(
+                logits_k,
+                label_idx,
                 reduction="none"
-            )
+            )  # [B]
             ce_per_prompt.append(ce_k)
-        # [B, K]
-        ce_per_prompt = torch.stack(ce_per_prompt, dim=1)
+        ce_per_prompt = torch.stack(ce_per_prompt, dim=1)  # [B, K]
+        # weights_teacher = weights_teacher32.to(self.dtype)
+        weights_teacher = weights_teacher32.detach().to(self.dtype)
 
-        # NLEEP teacher weight로 가중합 → teacher가 자기 "책임분" 만큼만 업데이트
-        # weights_teacher32: [B, K]
-        loss_teacher = (weights_teacher32 * ce_per_prompt).sum(dim=1).mean()  # scalar
+        loss_teacher = (weights_teacher*ce_per_prompt).sum(dim=1).mean()  # scalar
         self.loss_teacher = loss_teacher
-        self.loss_zs_kd = kd_zs
+
+        weighted_logits = (weights_teacher.unsqueeze(-1) *  torch.stack(logits_per_prompt, dim=1)).sum(dim=1) # [B,C]
+   
         correct_class_logits = torch.gather(
             logits_stack, 
             dim=2, 
             index=label_idx.view(-1, 1, 1).expand(-1, self.K, 1)
         ).squeeze(2)  # [B, K]
+        
+        tau_oracle = self.tau_oracle# 하이퍼파라미터 (상황에 맞춰 조절)
+        oracle_weights = F.softmax(correct_class_logits / tau_oracle, dim=1).detach() # [B, K]
 
-        # 2) 정답 기반 oracle 분포 (여러 prompt 동시에 클 수 있음)
-        tau_oracle = max(getattr(self, "tau_oracle", 1.0), 1e-6)
-        p_oracle = F.softmax(correct_class_logits / tau_oracle, dim=1)  # [B, K]
-
-        # 3) NLEEP teacher 분포와 oracle 분포를 섞어서 최종 target 만들기
-        alpha_mix = getattr(self, "alpha_oracle_mix", 0.5)  # 0~1 사이 값
-        # target = normalize( (1-alpha)*teacher + alpha*oracle )
-        mix = (1.0 - alpha_mix) * weights_teacher32 + alpha_mix * p_oracle
-        target_oracle = mix / (mix.sum(dim=1, keepdim=True) + 1e-8)  # [B, K]
-
-        # 4) gate가 이 soft 분포를 따라가도록 KL loss
         loss_oracle = F.kl_div(
-            F.log_softmax(gate_logits, dim=1),   # student 분포
-            target_oracle.detach(),              # 정답+거리 섞인 soft 타겟
+            F.log_softmax(gate_logits, dim=1), # Student Log P
+            oracle_weights,                    # Target Q (정답 기반)
             reduction="batchmean"
         )
         self.loss_oracle = loss_oracle
-        
-        # correct_class_logits = torch.gather(
-        #     logits_stack, 
-        #     dim=2, 
-        #     index=label_idx.view(-1, 1, 1).expand(-1, self.K, -1)
-        # ).squeeze(2) # [B, K]
-        
-        # best_prompt_idx = correct_class_logits.argmax(dim=1)  # [B], 0 ~ K-1
+        kd = F.kl_div(
+            F.log_softmax(gate_logits, dim=1),  # log P_student
+            weights_teacher32.detach(),         # Q_teacher
+            reduction="batchmean"
+        )
+        self.loss_gate_kd = kd
+         # --- debug stats (with label) ---
+        with torch.no_grad():
+            # gate stats
+            gate_prob = F.softmax(gate_logits, dim=1)  # [B,K]
+            gate_ent = -(gate_prob * (gate_prob + 1e-8).log()).sum(dim=1)  # [B]
+            gate_usage = gate_prob.mean(dim=0)  # [K]
 
-        # # 3. gate가 이 best_prompt_idx를 맞추도록 CrossEntropy 사용
-        # loss_oracle = F.cross_entropy(gate_logits, best_prompt_idx)
-        # self.loss_oracle = loss_oracle
-        # 2. Oracle Target 분포 생성 (정답 점수가 높을수록 높은 확률)
-        # tau_oracle: 이 값이 작을수록 가장 잘 맞춘 1등 프롬프트에 몰빵함 (Sharpness 조절)
-        # tau_oracle = 0.1 # 하이퍼파라미터 (상황에 맞춰 조절)
-        # tau_oracle = 1.0 # 하이퍼파라미터 (상황에 맞춰 조절)
-        # oracle_weights = F.softmax(correct_class_logits / tau_oracle, dim=1).detach() # [B, K]
+            # teacher stats
+            teacher_prob = weights_teacher32  # [B,K]
+            teacher_ent = -(teacher_prob * (teacher_prob + 1e-8).log()).sum(dim=1)  # [B]
+            teacher_usage = teacher_prob.mean(dim=0)  # [K]
 
-        # # 3. Student Gate가 Oracle 분포를 따르도록 Loss 계산
-        # # gate_logits: [B, K] (Student의 게이트 출력)
-        # loss_oracle = F.kl_div(
-        #     F.log_softmax(gate_logits, dim=1), # Student Log P
-        #     oracle_weights,                    # Target Q (정답 기반)
-        #     reduction="batchmean"
-        # )
-        # self.loss_oracle = loss_oracle
-      
+            # nleep scale sanity (row-wise max 중심)
+            nleep_row_max = nleep_scores.max(dim=1).values  # [B]
+            nleep_row_min = nleep_scores.min(dim=1).values  # [B]
+
+            self.debug_stats = {
+                "gate/entropy": gate_ent.mean().item(),
+                "gate/usage_max": gate_usage.max().item(),
+                "gate/usage_min": gate_usage.min().item(),
+                "gate/usage_std": gate_usage.std(unbiased=False).item(),
+
+                "teacher/entropy": teacher_ent.mean().item(),
+                "teacher/usage_max": teacher_usage.max().item(),
+                "teacher/usage_min": teacher_usage.min().item(),
+                "teacher/usage_std": teacher_usage.std(unbiased=False).item(),
+
+                "nleep/row_max_mean": nleep_row_max.mean().item(),
+                "nleep/row_max_std": nleep_row_max.std(unbiased=False).item(),
+                "nleep/row_min_mean": nleep_row_min.mean().item(),
+            }
         return weighted_logits
    
-    # def forward(self, image, label=None):
-    #     image = image.to(self.device, dtype=self.dtype)
-    #     logit_scale = self.logit_scale.exp()
-
-    #     img_feat = self.image_encoder(image)
-    #     img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True) # [B, D]
-        
-    #     B, D = img_feat.shape
-
-    #     # 2) 프롬프트별 텍스트 특징 및 로짓
-    #     text_feats_per_prompt, logits_per_prompt = [], []
-    #     for pl in self.prompt_learner:
-    #         prompts = pl()
-    #         tfeat = self.text_encoder(prompts, self.tokenized_prompts)
-    #         tfeat = tfeat / tfeat.norm(dim=-1, keepdim=True)
-    #         text_feats_per_prompt.append(tfeat)
-    #         logits = logit_scale * img_feat @ tfeat.t()    # [B, C]
-             
-    #         logits_per_prompt.append(logits)
-        
-    #     if label is None:
-    #         # student weights from image-only gate
-    #         gate_logits = self.gate(img_feat.to(torch.float32)) / max(self.tau_gate, 1e-6)  # [B,K] float32
-    #         w_student32 = F.softmax(gate_logits, dim=1)                                   # [B,K]
-    #         w_student = w_student32.to(self.dtype)
-    #         weighted_logits = (w_student.unsqueeze(-1) * torch.stack(logits_per_prompt, dim=1)).sum(dim=1)
-    #         return weighted_logits
-
-        
-    #     label_idx = label.to(self.device).long().view(-1)
-    #     K, C = self.num_selected_prompts, self.num_classes
-    #     mu_stack = torch.stack(text_feats_per_prompt, dim=0)  # [K,C,D]
-
-    #     R = int(getattr(self, "bootstrap_reps", 8))
-    #     boot_ratio = float(getattr(self, "bootstrap_ratio", 0.7))
-    #     var_eps = float(getattr(self, "var_eps", 1e-6))
-    #     class_masks = {c: (label_idx == c) for c in range(C)}
-
-        
-    #     batch_mu = torch.zeros(self.K, self.C, D, device=self.device)
-    #     batch_var_mean = torch.ones(self.K, self.C, D, device=self.device) * 1e-2
-    #     batch_var_disp = torch.zeros(self.K, self.C, D, device=self.device)
-
-    #     for c in range(C):
-    #         mask_c = class_masks[c]
-    #         if mask_c.sum() == 0:
-    #             continue
-
-    #         feats_c = img_feat[mask_c].detach()    # [Nc, D]
-    #         Nc = feats_c.size(0)
-    #         n_boot = max(1, int(round(Nc * boot_ratio)))
-
-    #         for k in range(K):
-
-    #             mu_text = mu_stack[k, c]  # CLIP 텍스트 특징
-
-    #             if Nc < 2:
-    #                 # default variance
-    #                 batch_mu[k, c] = mu_text
-    #                 batch_var_mean[k, c] = torch.full_like(mu_text, 1e-2)
-    #                 batch_var_disp[k, c] = torch.zeros_like(mu_text)
-    #             else:
-    #                 # Bootstrap estimation
-    #                 idx = torch.randint(0, Nc, (R, n_boot), device=self.device)
-    #                 feats_boot = feats_c[idx]
-    #                 var_r = ((feats_boot - mu_text) ** 2).mean(dim=1) + var_eps
-
-    #                 batch_mu[k, c] = mu_text
-    #                 batch_var_mean[k, c] = var_r.mean(dim=0)
-    #                 batch_var_disp[k, c] = var_r.var(dim=0, unbiased=False)
-
-    #     # ============================
-    #     # 2) EMA update
-    #     # ============================
-    #     if self.use_ema_teacher:
-    #         m = self.ema_momentum
-    #         self.ema_mu        = m * self.ema_mu        + (1 - m) * batch_mu
-    #         self.ema_var_mean = m * self.ema_var_mean + (1 - m) * batch_var_mean
-    #         self.ema_var_disp = m * self.ema_var_disp + (1 - m) * batch_var_disp
-    #     else:
-    #         self.ema_mu        = batch_mu
-    #         self.ema_var_mean = batch_var_mean
-    #         self.ema_var_disp = batch_var_disp
-
-    #     # ============================
-    #     # Teacher routing (EMA NLEEP) - 🌟 분산 최대화 로직 적용 🌟
-    #     # ============================
-    #     nleep_scores = torch.full((B, K), -1e9, device=self.device, dtype=torch.float32)
-
-    #     for k in range(K):
-    #         for c in range(C):
-    #             mask_c = class_masks[c]
-    #             if mask_c.sum() == 0:
-    #                 continue
-
-    #             # teacher statistics (EMA)
-    #             mu       = self.ema_mu[k, c].to(torch.float32)
-    #             var_mean = self.ema_var_mean[k, c].to(torch.float32)
-    #             var_disp = self.ema_var_disp[k, c].to(torch.float32)
-
-    #             adjusted_var = var_mean + self.alpha_pbeb * var_disp
-    #             adjusted_var = torch.clamp(adjusted_var, min=self.min_var)
-
-    #             x = img_feat[mask_c].to(torch.float32)
-    #             diff = x - mu
-    #             log_prob = -0.5 * ((diff * diff) / adjusted_var + adjusted_var.log()).sum(dim=1) # <--- [수정]
-    #             nleep_scores[mask_c, k] = log_prob
-
-    #     row_has_val = torch.isfinite(nleep_scores).any(dim=1)
-    #     if not row_has_val.all():
-    #         nleep_scores[~row_has_val] = 0.0
-
-    #     # (a) teacher weight (NLEEP 기반)
-    #     weights_teacher32 = F.softmax(nleep_scores, dim=1)      # [B,K] float32
-
-    #     # (b) student gate
-    #     gate_logits = self.gate(img_feat.to(torch.float32)) / max(self.tau_gate, 1e-6)  # [B,K] float32
-    #     weights_student32 = F.softmax(gate_logits, dim=1)
-    #     weights_student = weights_student32.to(self.dtype)
-
-    #     weighted_logits = (weights_student.unsqueeze(-1) *
-    #                          torch.stack(logits_per_prompt, dim=1)).sum(dim=1)  # [B,C]
-    #     kd = F.kl_div(
-    #         F.log_softmax(gate_logits, dim=1),           # log P_student
-    #         weights_teacher32.detach(),                  # Q_teacher
-    #         reduction="batchmean"
-    #     )
-        
-
-    #     self.loss_gate_kd = kd
-    #     return weighted_logits
-
 @TRAINER_REGISTRY.register()
 class TRIP(TrainerX):
     """Context Optimization (CoOp).
@@ -655,113 +594,6 @@ class TRIP(TrainerX):
 
     def check_cfg(self, cfg):
         assert cfg.TRAINER.TRIP.PREC in ["fp16", "fp32", "amp"]
-    @torch.no_grad()
-    def analyze_confidence_vs_distribution(self, split="test", n_bins=10):
-        """
-        confidence vs accuracy, distribution score vs accuracy
-        를 한 번에 분석하고, correlation + reliability plot 을 저장하는 함수.
-
-        사용 예시:
-            trainer.analyze_confidence_vs_distribution(split="val")
-            trainer.analyze_confidence_vs_distribution(split="test")
-        """
-        self.set_model_mode("eval")
-        self.model.eval()
-
-        # 1) 어떤 데이터셋을 볼지 선택
-        if split == "val" and self.val_loader is not None:
-            data_loader = self.val_loader
-        else:
-            split = "test"
-            data_loader = self.test_loader
-
-        all_conf = []
-        all_dist_score = []
-        all_correct = []
-
-        print(f"[Analysis] Collecting scores on *{split}* set...")
-        for batch in tqdm(data_loader, desc=f"Analyze {split}"):
-            # TrainerX에 정의된 parse_batch_test 사용 (이미 test()에서 쓰고 있음)
-            inputs, labels = self.parse_batch_test(batch)
-
-            # CustomCLIP.forward_analysis 호출
-            logits, w_student, nleep_scores, conf_weighted, pred = \
-                self.model.forward_analysis(inputs)
-
-            # numpy로 변환
-            conf_np = conf_weighted.cpu().numpy()                         # [B]
-            # 분포 기반 score: 각 샘플마다 가장 높은 NLEEP score 하나만 사용
-            dist_np = nleep_scores.max(dim=1).values.cpu().numpy()        # [B]
-
-            correct_np = (pred.cpu().numpy() == labels.cpu().numpy()).astype(np.float32)
-
-            all_conf.append(conf_np)
-            all_dist_score.append(dist_np)
-            all_correct.append(correct_np)
-
-        conf = np.concatenate(all_conf)          # [N]
-        dist = np.concatenate(all_dist_score)    # [N]
-        correct = np.concatenate(all_correct)    # [N], 0/1
-
-        # 2) point-biserial correlation (이분형 정답 vs 연속 score)
-        r_conf, p_conf = pointbiserialr(correct, conf)
-        r_dist, p_dist = pointbiserialr(correct, dist)
-
-        print("=== Correlation with correctness (point-biserial) ===")
-        print(f"- Baseline confidence : r = {r_conf:.4f}, p = {p_conf:.2e}")
-        print(f"- Dist. NLEEP score   : r = {r_dist:.4f}, p = {p_dist:.2e}")
-        print("  (r이 클수록 'score ↑ → 정답일 확률 ↑' 관계가 더 강함)")
-
-        # 3) Reliability plot 그리기 (score bin 별 실제 accuracy)
-        save_dir = os.path.join(self.output_dir, "analysis")
-        os.makedirs(save_dir, exist_ok=True)
-
-        def reliability_plot(score, name):
-            # 분포 기반 score는 log값이라 그대로 쓰면 범위가 안 예쁠 수 있음 → 0~1로 정규화
-            s = score.copy()
-            s = (s - s.min()) / (s.max() - s.min() + 1e-8)
-
-            bins = np.linspace(0.0, 1.0, n_bins + 1)
-            mids, accs = [], []
-            for i in range(n_bins):
-                lo, hi = bins[i], bins[i + 1]
-                mask = (s >= lo) & (s < hi)
-                if mask.sum() == 0:
-                    continue
-                mids.append((lo + hi) / 2.0)
-                accs.append(correct[mask].mean())
-
-            plt.figure()
-            plt.plot(mids, accs, marker="o")
-            plt.plot([0, 1], [0, 1], linestyle="--")  # y=x 이상적 calibration 라인
-            plt.xlabel(f"{name} (normalized)")
-            plt.ylabel("Empirical accuracy")
-            plt.title(f"Reliability of {name}")
-            plt.grid(True)
-
-            save_path = os.path.join(save_dir, f"reliability_{name.replace(' ', '_')}.png")
-            plt.savefig(save_path, bbox_inches="tight")
-            plt.close()
-            print(f"  - Saved reliability plot for {name} at: {save_path}")
-
-        reliability_plot(conf, "confidence")
-        reliability_plot(dist, "dist_score")
-
-      
-
-    def _ensure_writer(self, initialize=False):
-        # 이미 writer가 초기화되었으면 바로 반환 (싱글톤 패턴)
-        if hasattr(self, 'writer') and self.writer is not None and not initialize:
-            return self.writer
-        if not hasattr(self, 'output_dir'):
-            tb_dir = os.path.join('/workspace/Soft-Prompt-Generation/', "tensorboard/vlcs/fallback_run")
-        else:
-            tb_dir = os.path.join(self.output_dir, 'ana') 
-      
-        os.makedirs(tb_dir, exist_ok=True)
-        self.writer = SummaryWriter(log_dir=tb_dir)
-        print(f"[TensorBoard] Initialized writer in: {self.writer.log_dir}")
-        return self.writer
    
     def build_model(self):
         cfg = self.cfg
@@ -800,8 +632,11 @@ class TRIP(TrainerX):
         if cfg.MODEL.INIT_WEIGHTS:
             load_pretrained_weights(self.model.prompt_learner, cfg.MODEL.INIT_WEIGHTS)
         self.model.to(self.device)
-        train_params = chain(self.model.prompt_learner.parameters(),
-                             self.model.gate.parameters())
+        train_params = chain(
+            self.model.prompt_learner.parameters(), # 이건 이미 iterable (generator)
+            self.model.gate.parameters(),           # 이것도 iterable
+                       # <--- [중요] 이렇게 리스트로 감싸야 합니다!
+        )
         self.optim = build_optimizer(train_params, cfg.OPTIM)
         # NOTE: only give prompt_learner to the optimizer
         # self.optim = build_optimizer(self.model.prompt_learner.parameters(), cfg.OPTIM)
@@ -818,7 +653,7 @@ class TRIP(TrainerX):
                 print(f"{name:50s} {p.numel():,d}")
                 total += p.numel()
         print(f"Total trainable params: {total:,d}")
-
+        self.save_hyperparameters()
     def forward_backward(self, batch):
         image, label,domain = self.parse_batch_train(batch)
         prec = self.cfg.TRAINER.TRIP.PREC
@@ -831,74 +666,37 @@ class TRIP(TrainerX):
             self.scaler.step(self.optim)
             self.scaler.update()
         else:
- 
             output = self.model(image,label) # output에는 weighted_logits가 반환
-            
-            kd_loss = self.model.loss_gate_kd
-            ce_loss = F.cross_entropy(output, label)
+            # kd_loss = self.model.lambda_kd*self.model.loss_gate_kd
             teacher_loss = self.model.loss_teacher
+            # teacher_loss = non_negative_cross_entropy(output,label)
+            oracle_loss = self.model.lambda_oracle*self.model.loss_oracle
+            zs_kd_loss =  self.model.lambda_zs_kd*self.model.loss_zs_kd
+            kd_loss = self.model.loss_gate_kd*self.model.lambda_kd
             #loss_flag
             total_loss = (
-                + teacher_loss + self.model.loss_oracle + 0.5*self.model.loss_zs_kd
+                teacher_loss +  oracle_loss+zs_kd_loss +kd_loss
             )
             loss = total_loss # 최종 Loss를 summary에 사용
-
-
             self.model_backward_and_update(total_loss)
-            
         loss_summary = {
             "loss": loss.item(),
-            "ce_loss": ce_loss.item(),
-            'teacher_loss':teacher_loss.item(),
-            "loss_zs_kd":self.model.loss_zs_kd.item(),
-            'loss_oracle':self.model.loss_oracle.item(),
-            # 'loss_pre_gate_align':self.model.loss_pre_gate_align.item(),
-            "acc": compute_accuracy(output, label)[0].item(), 
-            "kd_loss": kd_loss.item(), # New Loss Variance Reg 로깅
+            'teacher_loss': teacher_loss.item(),
+            "loss_zs_kd": self.model.loss_zs_kd.item(),
+            'loss_oracle': self.model.loss_oracle.item(),
+            'kd_loss': self.model.loss_gate_kd.item(),
+            "acc": compute_accuracy(output, label)[0].item(),
         }
+
+        if hasattr(self.model, "debug_stats") and isinstance(self.model.debug_stats, dict):
+            loss_summary.update(self.model.debug_stats)
+
 
         if (self.batch_idx + 1) == self.num_batches:
             self.update_lr()
-
-        
         self._global_step += 1
         return loss_summary
-    def _log_prompt_stats(self):
-        """각 prompt의 ctx variance / prompt 간 cosine similarity 로그"""
-
-        w = self._ensure_writer()  # TensorBoard writer
-        epoch = self.epoch
-
-        with torch.no_grad():
-            ctx_vecs = []
-
-            # K개 prompt learner 순회
-            for k, pl in enumerate(self.model.prompt_learner):
-                # pl.ctx: [n_ctx, dim] 또는 [n_cls, n_ctx, dim]
-                ctx = pl.ctx.detach().float()
-
-                # 클래스별 context인 경우 [n_cls, n_ctx, dim] → flatten
-                ctx_flat = ctx.view(-1)
-
-                # variance (scalar)
-                var_k = ctx_flat.var().item()
-                w.add_scalar(f"prompt/ctx_var/p{k}", var_k, epoch)
-                # 혹은 self.write_scalar(f"prompt/ctx_var/p{k}", var_k, epoch) 써도 됨
-
-                # cosine similarity 계산용 (정규화 벡터)
-                ctx_norm = F.normalize(ctx_flat, dim=0)
-                ctx_vecs.append(ctx_norm)
-
-            # prompt 간 cosine similarity (K > 1일 때만)
-            if len(ctx_vecs) > 1:
-                ctx_mat = torch.stack(ctx_vecs, dim=0)  # [K, D_total]
-                sim = (ctx_mat @ ctx_mat.t()).cpu()     # [K, K]
-
-                K = sim.size(0)
-                for i in range(K):
-                    for j in range(i + 1, K):
-                        val = sim[i, j].item()
-                        w.add_scalar(f"prompt/cos_sim/p{i}_p{j}", val, epoch)
+    
     def parse_batch_train(self, batch):
         input = batch["img"]
         label = batch["label"]
@@ -918,7 +716,6 @@ class TRIP(TrainerX):
         elapsed = round(time.time() - self.time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
         print(f"Elapsed: {elapsed}")
-      
         self.close_writer()
 
     @torch.no_grad()
@@ -1001,13 +798,27 @@ class TRIP(TrainerX):
         
         n_iter = self.epoch
         self.write_scalar("train/val_acc", curr_result, n_iter)
-    
-        self._log_prompt_stats()
-
         self.set_model_mode("train")
         if self.cfg.SAVE_MODEL and (meet_checkpoint_freq or last_epoch):
             self.save_model(self.epoch, self.output_dir)
+    def save_hyperparameters(self):
+        """모델의 하이퍼파라미터를 output_dir에 JSON 파일로 저장"""
+        if not hasattr(self, 'output_dir'):
+            print("Warning: output_dir is not defined yet.")
+            return
 
+        save_path = os.path.join(self.output_dir, "hyperparameters.json")
+        
+        # 모델에 저장해둔 hparams 가져오기
+        params_to_save = self.model.hparams
+        
+        try:
+            with open(save_path, "w") as f:
+                # indent=4로 설정하면 사람이 읽기 편하게 들여쓰기 됨
+                json.dump(params_to_save, f, indent=4)
+            print(f"[Info] Hyperparameters saved to: {save_path}")
+        except Exception as e:
+            print(f"[Error] Failed to save hyperparameters: {e}")
     def load_model(self, directory, epoch=None):
         if not directory:
             print("Note that load_model() is skipped as no pretrained model is given")

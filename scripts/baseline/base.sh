@@ -25,46 +25,15 @@ GPU=$3
 # bash scripts/baseline/base.sh ViT-B/16 Dual 0
 # bash scripts/baseline/base.sh ViT-B/16 TRIP 0
 
-# DATASET=pacs
-# for SEED in 1 
-# do
-#   for WARMUP in 1
-#   do
-#     for DOMAIN in 'a' 'c' 'p' 's'
-#     do
-#       DIR=icml/multi-dg/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
-
-#       if [ -d "$DIR" ]; then
-#         echo "Results are available in ${DIR}, so skip this job"
-#       else
-#         echo "Run this job and save the output to ${DIR}"
-        
-#         python train_baseline.py \
-#           --gpu ${GPU} \
-#           --backbone ${BACKBONE} \
-#           --target-domains ${DOMAIN} \
-#           --root ${DATA} \
-#           --trainer ${TRAINER} \
-#           --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
-#           --config-file configs/trainers/BASELINE/${CFG}.yaml \
-#           --output-dir ${DIR} \
-#           --seed ${SEED} \
-#           --warmup_epoch ${WARMUP}
-#       fi
-#     done
-#   done
-# done
-
-DATASET=vlcs
-for SEED in 1 
+DATASET=pacs
+for SEED in 1 2 3 
 do
   for WARMUP in 1
   do
-    # for DOMAIN in 'c' 'l' 'p' 's'
-    for DOMAIN in 'p'
-
+    for DOMAIN in 'a' 'c' 'p' 's'
     do
-      DIR=icml/multi-dg/oracle/02_no_ce/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+      DIR=icml/multi-dg/tuning/base/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+      # DIR=icml/multi-dg/oracle/02_oracle1.0/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
 
       if [ -d "$DIR" ]; then
         echo "Results are available in ${DIR}, so skip this job"
@@ -87,44 +56,76 @@ do
   done
 done
 
-# DATASET=office_home
-# for SEED in 1 
-# do
-#   for WARMUP in 1
-#   do
-#     for DOMAIN in 'a' 'c' 'p' 'r'
-#     do
-#       DIR=icml/multi-dg/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+DATASET=vlcs 
+for SEED in 1 2 3
+do
+  for WARMUP in 1 
+  do
+    for DOMAIN in 'c' 'l' 'p' 's'
+    # for DOMAIN in   'p' 
 
-#       if [ -d "$DIR" ]; then
-#         echo "Results are available in ${DIR}, so skip this job"
-#       else
-#         echo "Run this job and save the output to ${DIR}"
+    do
+      DIR=icml/multi-dg/tuning/base/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+
+      if [ -d "$DIR" ]; then
+        echo "Results are available in ${DIR}, so skip this job"
+      else
+        echo "Run this job and save the output to ${DIR}"
         
-#         python train_baseline.py \
-#           --gpu ${GPU} \
-#           --backbone ${BACKBONE} \
-#           --target-domains ${DOMAIN} \
-#           --root ${DATA} \
-#           --trainer ${TRAINER} \
-#           --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
-#           --config-file configs/trainers/BASELINE/${CFG}.yaml \
-#           --output-dir ${DIR} \
-#           --seed ${SEED} \
-#           --warmup_epoch ${WARMUP}
-#       fi
-#     done
-#   done
-# done
+        python train_baseline.py \
+          --gpu ${GPU} \
+          --backbone ${BACKBONE} \
+          --target-domains ${DOMAIN} \
+          --root ${DATA} \
+          --trainer ${TRAINER} \
+          --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
+          --config-file configs/trainers/BASELINE/${CFG}.yaml \
+          --output-dir ${DIR} \
+          --seed ${SEED} \
+          --warmup_epoch ${WARMUP}
+      fi
+    done
+  done
+done
+
+DATASET=office_home
+for SEED in 1 2 3 
+do
+  for WARMUP in 1
+  do
+    for DOMAIN in  'c' 'p' 'r' 'a'
+    do
+      DIR=icml/multi-dg/tuning/base/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+
+      if [ -d "$DIR" ]; then
+        echo "Results are available in ${DIR}, so skip this job"
+      else
+        echo "Run this job and save the output to ${DIR}"
+        
+        python train_baseline.py \
+          --gpu ${GPU} \
+          --backbone ${BACKBONE} \
+          --target-domains ${DOMAIN} \
+          --root ${DATA} \
+          --trainer ${TRAINER} \
+          --dataset-config-file configs/datasets/multi_source/${DATASET}.yaml \
+          --config-file configs/trainers/BASELINE/${CFG}.yaml \
+          --output-dir ${DIR} \
+          --seed ${SEED} \
+          --warmup_epoch ${WARMUP}
+      fi
+    done
+  done
+done
 
 # DATASET=terra_incognita
-# for SEED in 1 
+# for SEED in 2 3
 # do
 #   for WARMUP in 1
 #   do
-#     for DOMAIN in  '2' '3' '4' '1'
+#     for DOMAIN in  '1'
 #     do
-#       DIR=icml/multi-dg/tuning/04_zs0_oracle0.1tau/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
+#       DIR=icml/multi-dg/tuning/19_ema_teacherupdate/${TRAINER}/${DATASET}/${CFG}/${BACKBONE//\//}/${DOMAIN}/seed_${SEED}/warmup_${WARMUP}
 
 #       if [ -d "$DIR" ]; then
 #         echo "Results are available in ${DIR}, so skip this job"
